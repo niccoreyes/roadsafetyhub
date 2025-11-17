@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, TrendingUp, AlertCircle, Car, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 import { fetchEncounters, fetchConditions, resolvePatients } from "@/utils/fhirClient";
-import { calculateMetrics, groupByAgeGroup, groupBySex, isExpired } from "@/utils/metricsCalculator";
+import { calculateMetrics, groupByAgeGroup, groupBySex } from "@/utils/metricsCalculator";
 import { groupByInjuryType } from "@/utils/snomedMapping";
 
 import { MetricCard } from "@/components/dashboard/MetricCard";
@@ -19,6 +19,8 @@ import { InjuryBarChart } from "@/components/dashboard/InjuryBarChart";
 import { MortalityPieChart } from "@/components/dashboard/MortalityPieChart";
 import { EncounterTable } from "@/components/dashboard/EncounterTable";
 import { ConditionTable } from "@/components/dashboard/ConditionTable";
+import EmsMetricsChart from "@/components/dashboard/EmsMetricsChart";
+import TrendsChart from "@/components/dashboard/TrendsChart";
 
 const Index = () => {
   const { toast } = useToast();
@@ -91,14 +93,48 @@ const Index = () => {
   const isLoading = encountersLoading || conditionsLoading || patientsLoading;
 
   // Calculate metrics
-  const metrics = calculateMetrics(encounters, conditions, patients);
-  const ageGroups = groupByAgeGroup(patients);
-  const sexGroups = groupBySex(patients);
-  const injuryGroups = groupByInjuryType(conditions);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [injuryGroups, setInjuryGroups] = useState<Record<string, number>>({});
+  const [ageGroups, setAgeGroups] = useState<Record<string, number>>({});
+  const [sexGroups, setSexGroups] = useState<Record<string, number>>({});
+  const [expiredCount, setExpiredCount] = useState<number>(0);
+  const [survivedCount, setSurvivedCount] = useState<number>(0);
 
-  // Mortality breakdown
-  const expiredCount = encounters.filter(isExpired).length;
-  const survivedCount = encounters.length - expiredCount;
+  // Additional state for async processing
+  const [isMetricsLoading, setIsMetricsLoading] = useState(false);
+
+  // Calculate metrics when data changes
+  useEffect(() => {
+    if (encounters.length > 0 || conditions.length > 0) {
+      setIsMetricsLoading(true);
+
+      const calculateAsyncMetrics = async () => {
+        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients);
+        const calculatedInjuryGroups = await groupByInjuryType(conditions);
+        const calculatedAgeGroups = groupByAgeGroup(patients);
+        const calculatedSexGroups = groupBySex(patients);
+
+        // Calculate expired count using the async isExpired function
+        const { isExpired } = await import("@/utils/metricsCalculator");
+        const expiredPromises = encounters.map(enc => isExpired(enc));
+        const expiredResults = await Promise.all(expiredPromises);
+        const calculatedExpiredCount = expiredResults.filter(Boolean).length;
+        const calculatedSurvivedCount = encounters.length - calculatedExpiredCount;
+
+        setMetrics(calculatedMetrics);
+        setInjuryGroups(calculatedInjuryGroups);
+        setAgeGroups(calculatedAgeGroups);
+        setSexGroups(calculatedSexGroups);
+        setExpiredCount(calculatedExpiredCount);
+        setSurvivedCount(calculatedSurvivedCount);
+        setIsMetricsLoading(false);
+      };
+
+      calculateAsyncMetrics();
+    }
+  }, [encounters, conditions, patients]);
+
+  const finalIsLoading = isLoading || isMetricsLoading;
 
   const handleRefresh = () => {
     refetchEncounters();
@@ -190,43 +226,43 @@ const Index = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <MetricCard
               title="Mortality Rate"
-              value={metrics.mortalityRate}
+              value={metrics?.mortalityRate || 0}
               unit="per 100k"
               icon={AlertCircle}
               description="Traffic accident deaths per 100,000 population"
-              isLoading={isLoading}
+              isLoading={finalIsLoading}
             />
             <MetricCard
               title="Deaths per 10k Vehicles"
-              value={metrics.deathsPer10kVehicles}
+              value={metrics?.deathsPer10kVehicles || 0}
               unit="per 10k"
               icon={Car}
               description="Road traffic deaths per 10,000 motor vehicles"
-              isLoading={isLoading}
+              isLoading={finalIsLoading}
             />
             <MetricCard
               title="Injury Rate"
-              value={metrics.injuryRate}
+              value={metrics?.injuryRate || 0}
               unit="per 100k"
               icon={TrendingUp}
               description="Non-fatal injuries per 100,000 population"
-              isLoading={isLoading}
+              isLoading={finalIsLoading}
             />
             <MetricCard
               title="Case Fatality Rate"
-              value={metrics.caseFatalityRate}
+              value={metrics?.caseFatalityRate || 0}
               unit="%"
               icon={Activity}
               description="Percentage of accidents resulting in death"
-              isLoading={isLoading}
+              isLoading={finalIsLoading}
             />
             <MetricCard
               title="Accidents per Vehicle"
-              value={metrics.accidentPerVehicle}
+              value={metrics?.accidentPerVehicle || 0}
               unit="per 10k"
               icon={Users}
               description="Reported accidents per 10,000 vehicles"
-              isLoading={isLoading}
+              isLoading={finalIsLoading}
             />
           </div>
         </section>
@@ -235,16 +271,20 @@ const Index = () => {
         <section>
           <h2 className="text-2xl font-semibold mb-4 text-foreground">Analytics & Trends</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <SexPieChart data={sexGroups} isLoading={isLoading} />
-            <AgeBarChart data={ageGroups} isLoading={isLoading} />
-            <InjuryBarChart data={injuryGroups} isLoading={isLoading} />
+            <SexPieChart data={sexGroups} isLoading={finalIsLoading} />
+            <AgeBarChart data={ageGroups} isLoading={finalIsLoading} />
+            <InjuryBarChart data={injuryGroups} isLoading={finalIsLoading} />
             <div className="md:col-span-2 lg:col-span-1">
-              <MortalityPieChart 
-                expired={expiredCount} 
-                survived={survivedCount} 
-                isLoading={isLoading} 
+              <MortalityPieChart
+                expired={expiredCount}
+                survived={survivedCount}
+                isLoading={finalIsLoading}
               />
             </div>
+
+            {/* New PH Road Safety IG charts */}
+            <EmsMetricsChart data={[]} isLoading={finalIsLoading} />
+            <TrendsChart data={[]} isLoading={finalIsLoading} />
           </div>
         </section>
 

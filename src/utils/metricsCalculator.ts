@@ -1,6 +1,6 @@
 // Metrics Calculation Utilities
 
-import { isTrafficAccident } from "./snomedMapping";
+import { isTrafficRelatedCondition } from "./snomedMapping";
 
 export interface DashboardMetrics {
   mortalityRate: number;
@@ -8,6 +8,9 @@ export interface DashboardMetrics {
   injuryRate: number;
   caseFatalityRate: number;
   accidentPerVehicle: number;
+  totalEncounters: number;
+  totalTrafficAccidents: number;
+  totalFatalities: number;
 }
 
 /**
@@ -22,59 +25,103 @@ const MOTOR_VEHICLES_COUNT = 50000;
 const POPULATION_AT_RISK = 1000000;
 
 /**
- * Checks if an encounter resulted in death
+ * Checks if an encounter resulted in death using PH Road Safety IG ValueSet
  */
-export function isExpired(encounter: any): boolean {
-  const disposition = encounter.hospitalization?.dischargeDisposition?.coding?.[0]?.code;
-  return disposition === "exp" || disposition === "expired";
-}
+export async function isExpired(encounter: any): Promise<boolean> {
+  const dispositionCoding = encounter.hospitalization?.dischargeDisposition?.coding?.[0];
+  if (!dispositionCoding) return false;
 
-/**
- * Checks if a condition is traffic-related
- */
-export function isTrafficRelatedCondition(condition: any): boolean {
-  if (!condition.code?.coding) return false;
-  
-  return condition.code.coding.some((coding: any) => 
-    isTrafficAccident(coding.code, coding.display)
+  // Check if the disposition code is in the discharge disposition ValueSet
+  const { isCodingInValueSet } = await import('./fhirClient');
+  const isDeathDisposition = await isCodingInValueSet(
+    dispositionCoding,
+    'http://fhir.ph/ValueSet/discharge-disposition'
   );
+
+  // Additionally check for specific death codes
+  const dispositionCode = dispositionCoding.code;
+  const deathCodes = ['exp', 'expired', 'dead', 'death'];
+
+  return isDeathDisposition || deathCodes.includes(dispositionCode);
 }
 
 /**
- * Calculates all dashboard metrics
+ * Gets the discharge disposition category using PH Road Safety IG ValueSet
  */
-export function calculateMetrics(
+export async function getDispositionCategory(encounter: any): Promise<string> {
+  const dispositionCoding = encounter.hospitalization?.dischargeDisposition?.coding?.[0];
+  if (!dispositionCoding) return "unknown";
+
+  // Check if the disposition code is in the discharge disposition ValueSet
+  const { isCodingInValueSet } = await import('./fhirClient');
+  const isValidDisposition = await isCodingInValueSet(
+    dispositionCoding,
+    'http://fhir.ph/ValueSet/discharge-disposition'
+  );
+
+  if (isValidDisposition) {
+    return dispositionCoding.display || dispositionCoding.code || "other";
+  }
+
+  return "unknown";
+}
+
+/**
+ * Calculates all dashboard metrics using PH Road Safety IG ValueSets
+ */
+export async function calculateMetrics(
   encounters: any[],
   conditions: any[],
   patients: Map<string, any>
-): DashboardMetrics {
-  // Filter for traffic-related encounters and conditions
-  const trafficEncounters = encounters.filter(enc => {
-    // Check if associated conditions are traffic-related
+): Promise<DashboardMetrics> {
+  // Filter for traffic-related encounters and conditions using async function
+  const trafficEncounters = [];
+
+  for (const enc of encounters) {
     const patientId = enc.subject?.reference?.replace("Patient/", "");
-    const patientConditions = conditions.filter(cond => 
+    const patientConditions = conditions.filter(cond =>
       cond.subject?.reference?.replace("Patient/", "") === patientId
     );
-    return patientConditions.some(isTrafficRelatedCondition);
-  });
 
-  const trafficConditions = conditions.filter(isTrafficRelatedCondition);
+    for (const condition of patientConditions) {
+      if (await isTrafficRelatedCondition(condition)) {
+        trafficEncounters.push(enc);
+        break; // Found a traffic-related condition for this encounter, no need to check others
+      }
+    }
+  }
+
+  const trafficConditions = [];
+  for (const condition of conditions) {
+    if (await isTrafficRelatedCondition(condition)) {
+      trafficConditions.push(condition);
+    }
+  }
 
   // A. Mortality Rate due to Traffic Accident
-  const trafficDeaths = trafficEncounters.filter(isExpired).length;
+  const trafficExpiredPromises = trafficEncounters.map(enc => isExpired(enc));
+  const trafficExpiredResults = await Promise.all(trafficExpiredPromises);
+  const trafficDeaths = trafficExpiredResults.filter(Boolean).length;
   const mortalityRate = (trafficDeaths / POPULATION_AT_RISK) * 100000;
 
   // B. Deaths per 10,000 Motor Vehicles
   const deathsPer10kVehicles = (trafficDeaths / MOTOR_VEHICLES_COUNT) * 10000;
 
   // C. Injury Rate by Traffic Accident
-  const nonFatalInjuries = trafficConditions.filter(cond => {
+  // Calculate which patients had expired encounters to identify non-fatal injuries
+  let nonFatalInjuries = 0;
+  for (const cond of trafficConditions) {
     const patientId = cond.subject?.reference?.replace("Patient/", "");
-    const patientEncounters = trafficEncounters.filter(enc => 
+    const patientEncounters = trafficEncounters.filter(enc =>
       enc.subject?.reference?.replace("Patient/", "") === patientId
     );
-    return !patientEncounters.some(isExpired);
-  }).length;
+
+    // Check if any of the patient's encounters resulted in death
+    const expiredResults = await Promise.all(patientEncounters.map(enc => isExpired(enc)));
+    if (!expiredResults.some(Boolean)) { // If none of the encounters were expired, it's a non-fatal injury
+      nonFatalInjuries++;
+    }
+  }
   const injuryRate = (nonFatalInjuries / POPULATION_AT_RISK) * 100000;
 
   // D. Case Fatality Rate
@@ -90,6 +137,9 @@ export function calculateMetrics(
     injuryRate,
     caseFatalityRate,
     accidentPerVehicle,
+    totalEncounters: encounters.length,
+    totalTrafficAccidents: totalAccidents,
+    totalFatalities: trafficDeaths,
   };
 }
 
@@ -101,23 +151,28 @@ export function calculateAge(birthDate: string): number {
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age--;
   }
-  
+
   return age;
 }
 
 /**
- * Gets age group from age
+ * Gets age group from age using PH Road Safety IG categories
  */
 export function getAgeGroup(age: number): string {
-  if (age < 15) return "0-14";
+  // Using more specific age groups as per PH Road Safety IG
+  if (age < 5) return "0-4";
+  if (age < 15) return "5-14";
   if (age < 25) return "15-24";
-  if (age < 45) return "25-44";
-  if (age < 65) return "45-64";
-  return "65+";
+  if (age < 35) return "25-34";
+  if (age < 45) return "35-44";
+  if (age < 55) return "45-54";
+  if (age < 65) return "55-64";
+  if (age < 75) return "65-74";
+  return "75+";
 }
 
 /**
@@ -125,11 +180,15 @@ export function getAgeGroup(age: number): string {
  */
 export function groupByAgeGroup(patients: Map<string, any>): Record<string, number> {
   const groups: Record<string, number> = {
-    "0-14": 0,
+    "0-4": 0,
+    "5-14": 0,
     "15-24": 0,
-    "25-44": 0,
-    "45-64": 0,
-    "65+": 0,
+    "25-34": 0,
+    "35-44": 0,
+    "45-54": 0,
+    "55-64": 0,
+    "65-74": 0,
+    "75+": 0,
   };
 
   patients.forEach(patient => {
@@ -144,7 +203,7 @@ export function groupByAgeGroup(patients: Map<string, any>): Record<string, numb
 }
 
 /**
- * Groups patients by sex
+ * Groups patients by sex using PH Road Safety IG categories
  */
 export function groupBySex(patients: Map<string, any>): Record<string, number> {
   const groups: Record<string, number> = {

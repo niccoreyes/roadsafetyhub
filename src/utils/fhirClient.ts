@@ -1,6 +1,12 @@
 // FHIR Client Utilities for fetching and processing FHIR resources
+import { logger } from './logger';
+import { getAuthHeaders } from './fhirAuth';
+import { valueSetCache } from '../cache/valueSetCache';
 
-const FHIR_BASE_URL = "https://cdr.fhirlab.net/fhir";
+// Import config values (will be replaced with context later)
+const FHIR_BASE_URL = import.meta.env.VITE_FHIR_BASE_URL || "https://cdr.fhirlab.net/fhir";
+const FHIR_TIMEOUT = parseInt(import.meta.env.VITE_FHIR_TIMEOUT || '30000', 10) || 30000;
+const FHIR_RETRY_ATTEMPTS = parseInt(import.meta.env.VITE_FHIR_RETRY_ATTEMPTS || '3', 10) || 3;
 
 export interface FHIRBundle {
   resourceType: "Bundle";
@@ -17,24 +23,55 @@ export interface FHIRBundle {
 }
 
 /**
- * Fetches all pages of a FHIR Bundle by following pagination links
+ * Fetches all pages of a FHIR Bundle by following pagination links with retry logic
  */
 export async function fhirFetchAll(url: string): Promise<any[]> {
   const allResources: any[] = [];
   let nextUrl: string | null = url;
+  let attempts = 0;
 
-  while (nextUrl) {
+  while (nextUrl && attempts < FHIR_RETRY_ATTEMPTS) {
     try {
-      const response = await fetch(nextUrl);
-      
+      // Get authentication headers
+      const headers = getAuthHeaders({
+        authType: (import.meta.env.VITE_FHIR_AUTH_TYPE as 'none' | 'bearer' | 'oauth') || 'none',
+        authToken: import.meta.env.VITE_FHIR_AUTH_TOKEN
+      });
+
+      // Create a request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FHIR_TIMEOUT);
+
+      const response = await fetch(nextUrl, {
+        headers,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        console.error(`FHIR fetch error: ${response.status} ${response.statusText}`);
-        
-        // If 400, might be unsupported search param - try without specific params
-        if (response.status === 400) {
-          console.warn("Received 400, might be unsupported search parameter");
+        logger.error(`FHIR fetch error: ${response.status} ${response.statusText} for URL: ${nextUrl}`);
+
+        // Distinguish between client errors (4xx) and server errors (5xx)
+        if (response.status >= 400 && response.status < 500) {
+          // Client error - don't retry
+          logger.warn(`Client error ${response.status}, not retrying: ${nextUrl}`);
+          break;
+        } else if (response.status >= 500) {
+          // Server error - retry with exponential backoff
+          attempts++;
+          if (attempts >= FHIR_RETRY_ATTEMPTS) {
+            logger.error(`Max retry attempts reached for: ${nextUrl}`);
+            break;
+          }
+
+          // Exponential backoff: wait 1s, 2s, 4s, etc.
+          const delay = Math.pow(2, attempts - 1) * 1000;
+          logger.info(`Retrying after ${delay}ms (attempt ${attempts}/${FHIR_RETRY_ATTEMPTS})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
         }
-        
+
         break;
       }
 
@@ -54,12 +91,39 @@ export async function fhirFetchAll(url: string): Promise<any[]> {
 
       // Prevent infinite loops
       if (allResources.length > 100000) {
-        console.warn("Fetched over 100k resources, stopping pagination");
+        logger.warn("Fetched over 100k resources, stopping pagination");
         break;
       }
-    } catch (error) {
-      console.error("Error fetching FHIR data:", error);
-      break;
+
+      // Reset attempts after successful fetch
+      attempts = 0;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        logger.error(`Request timeout for: ${nextUrl}`);
+        // For timeout, we might want to retry
+        attempts++;
+        if (attempts < FHIR_RETRY_ATTEMPTS) {
+          const delay = Math.pow(2, attempts - 1) * 1000;
+          logger.info(`Retrying after timeout, delay ${delay}ms (attempt ${attempts}/${FHIR_RETRY_ATTEMPTS})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        } else {
+          logger.error(`Max retry attempts reached after timeout for: ${nextUrl}`);
+          break;
+        }
+      } else {
+        logger.error(`Error fetching FHIR data from ${nextUrl}:`, error);
+        attempts++;
+        if (attempts < FHIR_RETRY_ATTEMPTS) {
+          const delay = Math.pow(2, attempts - 1) * 1000;
+          logger.info(`Retrying after error, delay ${delay}ms (attempt ${attempts}/${FHIR_RETRY_ATTEMPTS})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        } else {
+          logger.error(`Max retry attempts reached after error for: ${nextUrl}`);
+          break;
+        }
+      }
     }
   }
 
@@ -67,10 +131,75 @@ export async function fhirFetchAll(url: string): Promise<any[]> {
 }
 
 /**
- * Fetches encounters within a date range
+ * Fetches ValueSet expansion from the terminology server
+ */
+export async function fetchValueSetExpansion(valueSetUrl: string): Promise<any[]> {
+  // Check if we have this ValueSet in cache
+  const cached = valueSetCache.get(valueSetUrl);
+  if (cached) {
+    logger.info(`ValueSet ${valueSetUrl} retrieved from cache`);
+    return cached.expansion;
+  }
+
+  const txServerUrl = "https://tx.fhirlab.net/fhir";
+  const url = `${txServerUrl}/ValueSet/$expand?url=${encodeURIComponent(valueSetUrl)}`;
+
+  try {
+    const headers = getAuthHeaders({
+      authType: (import.meta.env.VITE_FHIR_AUTH_TYPE as 'none' | 'bearer' | 'oauth') || 'none',
+      authToken: import.meta.env.VITE_FHIR_AUTH_TOKEN
+    });
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ValueSet: ${response.status} ${response.statusText}`);
+    }
+
+    const valueSetExpansion = await response.json();
+
+    // Extract the codes from the expansion
+    const codes = valueSetExpansion.expansion?.contains || [];
+
+    // Cache the result (TTL: 5 minutes as per spec)
+    valueSetCache.set(valueSetUrl, codes, 5 * 60 * 1000);
+
+    logger.info(`ValueSet ${valueSetUrl} fetched and cached`);
+    return codes;
+  } catch (error) {
+    logger.error(`Error fetching ValueSet ${valueSetUrl}:`, error);
+    // Return empty array if we can't fetch the ValueSet
+    return [];
+  }
+}
+
+/**
+ * Checks if a coding matches any code in a ValueSet
+ */
+export async function isCodingInValueSet(coding: any, valueSetUrl: string): Promise<boolean> {
+  if (!coding?.code) return false;
+
+  const codes = await fetchValueSetExpansion(valueSetUrl);
+
+  return codes.some((code: any) =>
+    code.code === coding.code
+  );
+}
+
+/**
+ * Fetches encounters within a date range using PH Road Safety IG ValueSets
  */
 export async function fetchEncounters(startDate: string, endDate: string): Promise<any[]> {
-  const url = `${FHIR_BASE_URL}/Encounter?date=ge${startDate}&date=le${endDate}&_count=200`;
+  // Get the traffic encounter ValueSet codes
+  const trafficEncounterValueSetUrl = 'http://fhir.ph/ValueSet/road-traffic-encounters';
+  const trafficCodes = await fetchValueSetExpansion(trafficEncounterValueSetUrl);
+
+  // Build the URL - if we have traffic encounter codes, filter by them
+  let url = `${FHIR_BASE_URL}/Encounter?date=ge${startDate}&date=le${endDate}&_count=200`;
+
+  // For now, we're using the general query but in the future we might add specific parameters
+  // based on the ValueSet codes we've retrieved
+
   return fhirFetchAll(url);
 }
 
@@ -86,6 +215,10 @@ export async function fetchConditions(startDate: string, endDate: string): Promi
  * Fetches observations within a date range
  */
 export async function fetchObservations(startDate: string, endDate: string): Promise<any[]> {
+  // Get the observation category ValueSet codes
+  const observationCategoryValueSetUrl = 'http://fhir.ph/ValueSet/observation-category';
+  const observationCodes = await fetchValueSetExpansion(observationCategoryValueSetUrl);
+
   const url = `${FHIR_BASE_URL}/Observation?date=ge${startDate}&date=le${endDate}&_count=200`;
   return fhirFetchAll(url);
 }

@@ -1,111 +1,102 @@
-// SNOMED-CT Code Mapping for Road Safety Analytics
+// PH Road Safety IG ValueSet-based Code Mapping for Road Safety Analytics
+import { fetchValueSetExpansion, isCodingInValueSet } from './fhirClient';
 
 /**
- * Known SNOMED CT codes for road traffic accidents and injuries
+ * URLs for PH Road Safety IG ValueSets
  */
-export const TRAFFIC_ACCIDENT_CODES = [
-  "116808009", // Motor vehicle accident
-  "281647001", // Road traffic accident
-  "422791008", // Multiple injuries due to trauma
-  "26292008",  // Pedestrian injured
-  "212438000", // Transport accident
-  "242328002", // Collision involving motor vehicle
-  "217043006", // Motor vehicle traffic accident
-];
+export const VALUE_SET_URLS = {
+  TRAFFIC_ENCOUNTER: 'http://fhir.ph/ValueSet/road-traffic-encounters',
+  INJURY_MOI: 'http://fhir.ph/ValueSet/injury-mechanism-of-injury',
+  OBSERVATION_CATEGORY: 'http://fhir.ph/ValueSet/observation-category',
+  DISCHARGE_DISPOSITION: 'http://fhir.ph/ValueSet/discharge-disposition',
+};
 
 /**
- * Keywords to identify traffic/transport accidents
+ * Checks if a coding indicates a traffic accident using PH Road Safety IG ValueSet
  */
-export const TRAFFIC_KEYWORDS = [
-  "traffic",
-  "transport",
-  "vehic",
-  "collision",
-  "mva",
-  "road",
-  "pedestrian",
-  "crash",
-  "motor vehicle",
-];
+export async function isTrafficAccident(coding?: any): Promise<boolean> {
+  if (!coding) return false;
 
-/**
- * Checks if a SNOMED code or display text indicates a traffic accident
- */
-export function isTrafficAccident(code?: string, display?: string): boolean {
-  if (!code && !display) return false;
-
-  const searchText = `${code || ""} ${display || ""}`.toLowerCase();
-  
-  // Check exact code matches
-  if (code && TRAFFIC_ACCIDENT_CODES.includes(code)) {
-    return true;
-  }
-
-  // Check keyword matches
-  return TRAFFIC_KEYWORDS.some(keyword => searchText.includes(keyword));
+  return await isCodingInValueSet(coding, VALUE_SET_URLS.TRAFFIC_ENCOUNTER);
 }
 
 /**
- * Classifies a condition based on SNOMED codes
+ * Checks if a condition is traffic-related using PH Road Safety IG ValueSets
  */
-export function classifyCondition(condition: any): string {
-  if (!condition.code?.coding) return "Unknown";
+export async function isTrafficRelatedCondition(condition: any): Promise<boolean> {
+  if (!condition.code?.coding) return false;
 
   for (const coding of condition.code.coding) {
-    const codeStr = coding.code?.toLowerCase() || "";
-    const display = coding.display?.toLowerCase() || "";
-
-    if (isTrafficAccident(coding.code, coding.display)) {
-      // Further classify by type
-      if (display.includes("pedestrian") || codeStr.includes("26292008")) {
-        return "Pedestrian injured";
-      }
-      if (display.includes("collision") || display.includes("crash")) {
-        return "Vehicle collision";
-      }
-      if (display.includes("fall")) {
-        return "Fall from vehicle";
-      }
-      if (display.includes("motor vehicle") || codeStr.includes("116808009")) {
-        return "Motor vehicle accident";
-      }
-      return "Traffic accident";
+    if (await isTrafficAccident(coding)) {
+      return true;
     }
   }
 
-  return "Transport accident unspecified";
+  return false;
 }
 
 /**
- * Injury classification categories
+ * Classify an injury based on PH Road Safety IG ValueSets
+ */
+export async function classifyInjuryMoi(condition: any): Promise<string> {
+  if (!condition.code?.coding) return "Unknown";
+
+  for (const coding of condition.code.coding) {
+    if (await isCodingInValueSet(coding, VALUE_SET_URLS.INJURY_MOI)) {
+      return coding.display || coding.code || "Injury";
+    }
+  }
+
+  return "Other";
+}
+
+/**
+ * Classifies a condition based on PH Road Safety IG ValueSets
+ */
+export async function classifyCondition(condition: any): Promise<string> {
+  if (!condition.code?.coding) return "Unknown";
+
+  for (const coding of condition.code.coding) {
+    if (await isTrafficAccident(coding)) {
+      // Further classify by injury mechanism of injury
+      const moiClassification = await classifyInjuryMoi(condition);
+      return moiClassification;
+    }
+  }
+
+  return "Other condition";
+}
+
+/**
+ * Injury classification categories based on PH Road Safety IG ValueSets
  */
 export const INJURY_CATEGORIES = [
-  "Traffic accident",
-  "Transport accident unspecified",
-  "Vehicle collision",
-  "Pedestrian injured",
-  "Fall from vehicle",
   "Motor vehicle accident",
+  "Pedestrian accident",
+  "Cyclist accident",
+  "Road traffic accident",
+  "Other transport accident",
+  "Other condition",
 ];
 
 /**
- * Groups conditions by injury classification
+ * Groups conditions by injury classification using PH Road Safety IG ValueSets
  */
-export function groupByInjuryType(conditions: any[]): Record<string, number> {
+export async function groupByInjuryType(conditions: any[]): Promise<Record<string, number>> {
   const groups: Record<string, number> = {};
-  
+
   INJURY_CATEGORIES.forEach(category => {
     groups[category] = 0;
   });
 
-  conditions.forEach(condition => {
-    const category = classifyCondition(condition);
+  for (const condition of conditions) {
+    const category = await classifyCondition(condition);
     if (groups[category] !== undefined) {
       groups[category]++;
     } else {
-      groups["Transport accident unspecified"]++;
+      groups["Other condition"]++;
     }
-  });
+  }
 
   return groups;
 }
