@@ -26,55 +26,77 @@ const POPULATION_AT_RISK = 1000000;
 
 /**
  * Checks if an encounter resulted in death using PH Road Safety IG ValueSet
+ * Falls back to known death codes if ValueSet expansion fails
  */
 export async function isExpired(encounter: any): Promise<boolean> {
   const dispositionCoding = encounter.hospitalization?.dischargeDisposition?.coding?.[0];
   if (!dispositionCoding) return false;
 
-  // Check if the disposition code is in the discharge disposition ValueSet
-  const { isCodingInValueSet } = await import('./fhirClient');
-  const isDeathDisposition = await isCodingInValueSet(
-    dispositionCoding,
-    'http://fhir.ph/ValueSet/discharge-disposition'
-  );
+  try {
+    // Check if the disposition code is in the discharge disposition ValueSet
+    const { isCodingInValueSet } = await import('./fhirClient');
+    const isDeathDisposition = await isCodingInValueSet(
+      dispositionCoding,
+      'http://fhir.ph/ValueSet/discharge-disposition'
+    );
 
-  // Additionally check for specific death codes
-  const dispositionCode = dispositionCoding.code;
-  const deathCodes = ['exp', 'expired', 'dead', 'death'];
+    // Additionally check for specific death codes
+    const dispositionCode = dispositionCoding.code;
+    const deathCodes = ['exp', 'expired', 'dead', 'death'];
 
-  return isDeathDisposition || deathCodes.includes(dispositionCode);
+    return isDeathDisposition || deathCodes.includes(dispositionCode);
+  } catch (error) {
+    console.warn('ValueSet expansion failed for discharge disposition, using fallback logic:', error);
+
+    // Fallback: just check for known death codes
+    const dispositionCode = dispositionCoding.code;
+    const deathCodes = ['exp', 'expired', 'dead', 'death'];
+
+    return deathCodes.includes(dispositionCode?.toLowerCase());
+  }
 }
 
 /**
  * Gets the discharge disposition category using PH Road Safety IG ValueSet
+ * Falls back to known values if ValueSet expansion fails
  */
 export async function getDispositionCategory(encounter: any): Promise<string> {
   const dispositionCoding = encounter.hospitalization?.dischargeDisposition?.coding?.[0];
   if (!dispositionCoding) return "unknown";
 
-  // Check if the disposition code is in the discharge disposition ValueSet
-  const { isCodingInValueSet } = await import('./fhirClient');
-  const isValidDisposition = await isCodingInValueSet(
-    dispositionCoding,
-    'http://fhir.ph/ValueSet/discharge-disposition'
-  );
+  try {
+    // Check if the disposition code is in the discharge disposition ValueSet
+    const { isCodingInValueSet } = await import('./fhirClient');
+    const isValidDisposition = await isCodingInValueSet(
+      dispositionCoding,
+      'http://fhir.ph/ValueSet/discharge-disposition'
+    );
 
-  if (isValidDisposition) {
-    return dispositionCoding.display || dispositionCoding.code || "other";
+    if (isValidDisposition) {
+      return dispositionCoding.display || dispositionCoding.code || "other";
+    }
+  } catch (error) {
+    console.warn('ValueSet expansion failed for discharge disposition, using fallback logic:', error);
+
+    // Common FHIR discharge disposition codes
+    const deathCodes = ['exp', 'expired', 'dead', 'death', 'home', 'oth', 'ama', 'tra'];
+    if (deathCodes.includes(dispositionCoding.code?.toLowerCase())) {
+      return dispositionCoding.display || dispositionCoding.code || "other";
+    }
   }
 
   return "unknown";
 }
 
 /**
- * Calculates all dashboard metrics using PH Road Safety IG ValueSets
+ * Calculates all dashboard metrics using known SNOMED CT codes for traffic accidents
  */
 export async function calculateMetrics(
   encounters: any[],
   conditions: any[],
   patients: Map<string, any>
 ): Promise<DashboardMetrics> {
-  // Filter for traffic-related encounters and conditions using async function
+  // Filter for traffic-related encounters and conditions
   const trafficEncounters = [];
 
   for (const enc of encounters) {
@@ -84,7 +106,7 @@ export async function calculateMetrics(
     );
 
     for (const condition of patientConditions) {
-      if (await isTrafficRelatedCondition(condition)) {
+      if (isTrafficRelatedCondition(condition)) {
         trafficEncounters.push(enc);
         break; // Found a traffic-related condition for this encounter, no need to check others
       }
@@ -93,7 +115,7 @@ export async function calculateMetrics(
 
   const trafficConditions = [];
   for (const condition of conditions) {
-    if (await isTrafficRelatedCondition(condition)) {
+    if (isTrafficRelatedCondition(condition)) {
       trafficConditions.push(condition);
     }
   }

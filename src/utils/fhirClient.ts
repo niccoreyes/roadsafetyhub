@@ -190,16 +190,8 @@ export async function isCodingInValueSet(coding: any, valueSetUrl: string): Prom
  * Fetches encounters within a date range using PH Road Safety IG ValueSets
  */
 export async function fetchEncounters(startDate: string, endDate: string): Promise<any[]> {
-  // Get the traffic encounter ValueSet codes
-  const trafficEncounterValueSetUrl = 'http://fhir.ph/ValueSet/road-traffic-encounters';
-  const trafficCodes = await fetchValueSetExpansion(trafficEncounterValueSetUrl);
-
-  // Build the URL - if we have traffic encounter codes, filter by them
   // Use meta.lastUpdated for consistent date filtering across resources
-  let url = `${FHIR_BASE_URL}/Encounter?_lastUpdated=ge${startDate}&_lastUpdated=le${endDate}&_count=200`;
-
-  // For now, we're using the general query but in the future we might add specific parameters
-  // based on the ValueSet codes we've retrieved
+  const url = `${FHIR_BASE_URL}/Encounter?_lastUpdated=ge${startDate}&_lastUpdated=le${endDate}&_count=200`;
 
   return fhirFetchAll(url);
 }
@@ -216,10 +208,6 @@ export async function fetchConditions(startDate: string, endDate: string): Promi
  * Fetches observations within a date range
  */
 export async function fetchObservations(startDate: string, endDate: string): Promise<any[]> {
-  // Get the observation category ValueSet codes
-  const observationCategoryValueSetUrl = 'http://fhir.ph/ValueSet/observation-category';
-  const observationCodes = await fetchValueSetExpansion(observationCategoryValueSetUrl);
-
   const url = `${FHIR_BASE_URL}/Observation?date=ge${startDate}&date=le${endDate}&_count=200`;
   return fhirFetchAll(url);
 }
@@ -241,17 +229,14 @@ export async function fetchPatient(patientId: string): Promise<any> {
   }
 }
 
-/**
- * Cache for resolved patients
- */
-const patientCache = new Map<string, any>();
+import { patientCache } from '../cache/patientCache';
 
 /**
  * Resolves patient references with caching
  */
 export async function resolvePatients(resources: any[]): Promise<Map<string, any>> {
   const patientIds = new Set<string>();
-  
+
   // Extract all patient references
   resources.forEach(resource => {
     if (resource.subject?.reference) {
@@ -264,9 +249,10 @@ export async function resolvePatients(resources: any[]): Promise<Map<string, any
 
   // Fetch patients not in cache
   const fetchPromises: Promise<void>[] = [];
-  
+
   patientIds.forEach(patientId => {
-    if (!patientCache.has(patientId)) {
+    const cachedPatient = patientCache.get(patientId);
+    if (!cachedPatient) {
       fetchPromises.push(
         fetchPatient(patientId).then(patient => {
           if (patient) {
@@ -278,8 +264,17 @@ export async function resolvePatients(resources: any[]): Promise<Map<string, any
   });
 
   await Promise.all(fetchPromises);
-  
-  return new Map(patientCache);
+
+  // Create a map with all the requested patients from cache
+  const result = new Map<string, any>();
+  patientIds.forEach(patientId => {
+    const cachedPatient = patientCache.get(patientId);
+    if (cachedPatient) {
+      result.set(patientId, cachedPatient);
+    }
+  });
+
+  return result;
 }
 
 /**

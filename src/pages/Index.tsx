@@ -19,8 +19,6 @@ import { InjuryBarChart } from "@/components/dashboard/InjuryBarChart";
 import { MortalityPieChart } from "@/components/dashboard/MortalityPieChart";
 import { EncounterTable } from "@/components/dashboard/EncounterTable";
 import { ConditionTable } from "@/components/dashboard/ConditionTable";
-import EmsMetricsChart from "@/components/dashboard/EmsMetricsChart";
-import TrendsChart from "@/components/dashboard/TrendsChart";
 
 const Index = () => {
   const { toast } = useToast();
@@ -156,7 +154,7 @@ const Index = () => {
 
       const calculateAsyncMetrics = async () => {
         const calculatedMetrics = await calculateMetrics(encounters, conditions, patients);
-        const calculatedInjuryGroups = await groupByInjuryType(conditions);
+        const calculatedInjuryGroups = groupByInjuryType(conditions);
         const calculatedAgeGroups = groupByAgeGroup(patients);
         const calculatedSexGroups = groupBySex(patients);
 
@@ -347,9 +345,6 @@ const Index = () => {
               />
             </div>
 
-            {/* New PH Road Safety IG charts */}
-            <EmsMetricsChart data={[]} isLoading={finalIsLoading} />
-            <TrendsChart data={[]} isLoading={finalIsLoading} />
           </div>
         </section>
 
