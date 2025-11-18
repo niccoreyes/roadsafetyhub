@@ -195,7 +195,8 @@ export async function fetchEncounters(startDate: string, endDate: string): Promi
   const trafficCodes = await fetchValueSetExpansion(trafficEncounterValueSetUrl);
 
   // Build the URL - if we have traffic encounter codes, filter by them
-  let url = `${FHIR_BASE_URL}/Encounter?date=ge${startDate}&date=le${endDate}&_count=200`;
+  // Use meta.lastUpdated for consistent date filtering across resources
+  let url = `${FHIR_BASE_URL}/Encounter?_lastUpdated=ge${startDate}&_lastUpdated=le${endDate}&_count=200`;
 
   // For now, we're using the general query but in the future we might add specific parameters
   // based on the ValueSet codes we've retrieved
@@ -204,10 +205,10 @@ export async function fetchEncounters(startDate: string, endDate: string): Promi
 }
 
 /**
- * Fetches conditions within a date range (using recorded-date)
+ * Fetches conditions within a date range (using meta.lastUpdated for consistency)
  */
 export async function fetchConditions(startDate: string, endDate: string): Promise<any[]> {
-  const url = `${FHIR_BASE_URL}/Condition?recorded-date=ge${startDate}&recorded-date=le${endDate}&_count=200`;
+  const url = `${FHIR_BASE_URL}/Condition?_lastUpdated=ge${startDate}&_lastUpdated=le${endDate}&_count=200`;
   return fhirFetchAll(url);
 }
 

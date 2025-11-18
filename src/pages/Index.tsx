@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, TrendingUp, AlertCircle, Car, Users } from "lucide-react";
+import { Activity, TrendingUp, AlertCircle, Car, Users, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-import { fetchEncounters, fetchConditions, resolvePatients } from "@/utils/fhirClient";
+import { fetchEncounters, fetchConditions, fetchObservations, resolvePatients } from "@/utils/fhirClient";
 import { calculateMetrics, groupByAgeGroup, groupBySex } from "@/utils/metricsCalculator";
 import { groupByInjuryType } from "@/utils/snomedMapping";
 
@@ -24,17 +24,22 @@ import TrendsChart from "@/components/dashboard/TrendsChart";
 
 const Index = () => {
   const { toast } = useToast();
-  const [startDate, setStartDate] = useState<Date>(new Date("2024-01-01"));
-  const [endDate, setEndDate] = useState<Date>(new Date("2024-12-31"));
+  const [date, setDate] = useState<{ from: Date; to: Date } | undefined>({
+    from: new Date("2025-11-01"),
+    to: new Date("2025-11-30")
+  });
 
   // Fetch all data
   const { data: encountersData, isLoading: encountersLoading, refetch: refetchEncounters } = useQuery({
-    queryKey: ["encounters", startDate, endDate],
+    queryKey: ["encounters", date],
     queryFn: async () => {
       try {
+        if (!date) {
+          return [];
+        }
         const encounters = await fetchEncounters(
-          format(startDate, "yyyy-MM-dd"),
-          format(endDate, "yyyy-MM-dd")
+          format(date.from, "yyyy-MM-dd"),
+          format(date.to, "yyyy-MM-dd")
         );
         return encounters;
       } catch (error) {
@@ -49,18 +54,57 @@ const Index = () => {
   });
 
   const { data: conditionsData, isLoading: conditionsLoading } = useQuery({
-    queryKey: ["conditions", startDate, endDate],
+    queryKey: ["conditions", date],
     queryFn: async () => {
       try {
+        if (!date) {
+          return [];
+        }
         const conditions = await fetchConditions(
-          format(startDate, "yyyy-MM-dd"),
-          format(endDate, "yyyy-MM-dd")
+          format(date.from, "yyyy-MM-dd"),
+          format(date.to, "yyyy-MM-dd")
         );
         return conditions;
       } catch (error) {
         toast({
           title: "Error fetching conditions",
           description: "Failed to load condition data from FHIR server",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
+  });
+
+  // Fetch observations with SNOMED CT code 274215009
+  const { data: vitalSignsData, isLoading: vitalSignsLoading } = useQuery({
+    queryKey: ["vitalSignsObservations", date],
+    queryFn: async () => {
+      try {
+        if (!date) {
+          return [];
+        }
+        const observations = await fetchObservations(
+          format(date.from, "yyyy-MM-dd"),
+          format(date.to, "yyyy-MM-dd")
+        );
+        // Filter for SNOMED CT code 274215009 (Vital Signs assessment)
+        const vitalSignsObservations = observations.filter(obs => {
+          try {
+            return obs?.code?.coding?.some((coding: any) =>
+              coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001" &&
+              coding?.code === "274215009"
+            );
+          } catch (error) {
+            console.warn("Error while filtering observation", error);
+            return false;
+          }
+        });
+        return vitalSignsObservations;
+      } catch (error) {
+        toast({
+          title: "Error fetching observations",
+          description: "Failed to load observation data from FHIR server",
           variant: "destructive",
         });
         return [];
@@ -89,6 +133,7 @@ const Index = () => {
 
   const encounters = encountersData || [];
   const conditions = conditionsData || [];
+  const vitalSignsObservations = vitalSignsData || [];
   const patients = patientsData || new Map();
   const isLoading = encountersLoading || conditionsLoading || patientsLoading;
 
@@ -99,13 +144,14 @@ const Index = () => {
   const [sexGroups, setSexGroups] = useState<Record<string, number>>({});
   const [expiredCount, setExpiredCount] = useState<number>(0);
   const [survivedCount, setSurvivedCount] = useState<number>(0);
+  const [vitalSignsCount, setVitalSignsCount] = useState<number>(0);
 
   // Additional state for async processing
   const [isMetricsLoading, setIsMetricsLoading] = useState(false);
 
   // Calculate metrics when data changes
   useEffect(() => {
-    if (encounters.length > 0 || conditions.length > 0) {
+    if (encounters.length > 0 || conditions.length > 0 || vitalSignsObservations.length > 0) {
       setIsMetricsLoading(true);
 
       const calculateAsyncMetrics = async () => {
@@ -121,20 +167,24 @@ const Index = () => {
         const calculatedExpiredCount = expiredResults.filter(Boolean).length;
         const calculatedSurvivedCount = encounters.length - calculatedExpiredCount;
 
+        // Calculate vital signs count
+        const calculatedVitalSignsCount = vitalSignsObservations.length;
+
         setMetrics(calculatedMetrics);
         setInjuryGroups(calculatedInjuryGroups);
         setAgeGroups(calculatedAgeGroups);
         setSexGroups(calculatedSexGroups);
         setExpiredCount(calculatedExpiredCount);
         setSurvivedCount(calculatedSurvivedCount);
+        setVitalSignsCount(calculatedVitalSignsCount);
         setIsMetricsLoading(false);
       };
 
       calculateAsyncMetrics();
     }
-  }, [encounters, conditions, patients]);
+  }, [encounters, conditions, vitalSignsObservations, patients]);
 
-  const finalIsLoading = isLoading || isMetricsLoading;
+  const finalIsLoading = isLoading || isMetricsLoading || vitalSignsLoading;
 
   const handleRefresh = () => {
     refetchEncounters();
@@ -160,52 +210,53 @@ const Index = () => {
             </div>
             
             <div className="flex flex-wrap gap-2 items-center">
-              {/* Start Date Picker */}
+              {/* Date Range Picker */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
-                    variant="outline"
+                    id="date"
+                    variant={"outline"}
                     className={cn(
-                      "justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
+                      "w-[300px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
                     )}
                   >
-                    <Activity className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : "Start date"}
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date?.from ? (
+                      date.to ? (
+                        <>
+                          {format(date.from, "LLL dd, y")} -{" "}
+                          {format(date.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(date.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>Pick a date range</span>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={(date) => date && setStartDate(date)}
                     initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-
-              {/* End Date Picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Activity className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : "End date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={(date) => date && setEndDate(date)}
-                    initialFocus
-                    className="pointer-events-auto"
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={(selectedRange) => {
+                      // Validate that the date range is proper
+                      if (selectedRange?.from && selectedRange?.to) {
+                        if (selectedRange.from > selectedRange.to) {
+                          toast({
+                            title: "Invalid Date Range",
+                            description: "Start date cannot be after end date.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                      }
+                      setDate(selectedRange);
+                    }}
+                    numberOfMonths={2}
                   />
                 </PopoverContent>
               </Popover>
@@ -263,6 +314,14 @@ const Index = () => {
               icon={Users}
               description="Reported accidents per 10,000 vehicles"
               isLoading={finalIsLoading}
+            />
+            <MetricCard
+              title="Vital Signs Assessments"
+              value={vitalSignsCount || 0}
+              unit="#"
+              icon={Activity}
+              description="Observations with SNOMED CT code 274215009 (Vital Signs assessment)"
+              isLoading={finalIsLoading || vitalSignsLoading}
             />
           </div>
         </section>

@@ -224,3 +224,42 @@ export function groupBySex(patients: Map<string, any>): Record<string, number> {
 
   return groups;
 }
+
+/**
+ * Counts observations that match the PH Road Safety IG SNOMED CT code 274215009 for Vital Signs assessment
+ */
+export function countVitalSignsAssessments(observations: any[]): number {
+  if (!Array.isArray(observations)) {
+    console.warn("observations is not an array, returning 0");
+    return 0;
+  }
+
+  return observations.filter(obs => {
+    try {
+      return obs?.code?.coding?.some((coding: any) =>
+        coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001" &&
+        coding?.code === "274215009"
+      );
+    } catch (error) {
+      console.warn("Error while filtering observation", error);
+      return false;
+    }
+  }).length;
+}
+
+/**
+ * Extracts SNOMED codes from Observation.code.coding array
+ */
+export function extractSnomedCodes(observation: any): Array<{ system: string; code: string; display?: string }> {
+  if (!observation.code?.coding) {
+    return [];
+  }
+
+  return observation.code.coding
+    .filter((coding: any) => coding.system && coding.code)
+    .map((coding: any) => ({
+      system: coding.system,
+      code: coding.code,
+      display: coding.display
+    }));
+}

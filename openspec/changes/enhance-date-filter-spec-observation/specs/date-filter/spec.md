@@ -4,7 +4,7 @@
 The dashboard SHALL provide a unified Date Range Picker component that allows users to select both start and end dates within a single calendar interface.
 
 #### Scenario: User selects date range
-- **GIVEN** the dashboard is loaded with default date range (2024-01-01 to 2024-12-31)
+- **GIVEN** the dashboard is loaded with default date range (2025-11-01 to 2025-11-30)
 - **WHEN** the user clicks on the date picker button
 - **THEN** a calendar popover displays showing both months side-by-side (when applicable)
 - **AND** the currently selected date range is visually highlighted
