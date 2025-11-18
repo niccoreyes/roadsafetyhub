@@ -2,16 +2,11 @@
 
 ## ADDED Requirements
 
-#### Requirement: CONFIGURABLE_FHIR_SERVER
-**Capability:** FHIR Server Configuration 
+### Requirement: CONFIGURABLE_FHIR_SERVER
+**Capability:** FHIR Server Configuration
 #### Scenario: User configures FHIR server base URL and authentication credentials
 
-**Requirement:** The system SHALL support configurable FHIR server parameters including:
-- Base URL (default: `https://cdr.fhirlab.net/fhir`)
-- Authentication credentials (Bearer token, OAuth, etc.)
-- Timeout settings
-- Retry attempts
-- Pagination limits
+**Requirement:** The system SHALL support configurable FHIR server parameters including base URL (default: `https://cdr.fhirlab.net/fhir`). The system SHALL support configurable FHIR server parameters including authentication credentials (Bearer token, OAuth, etc.). The system SHALL support configurable FHIR server parameters including timeout settings. The system SHALL support configurable FHIR server parameters including retry attempts. The system SHALL support configurable FHIR server parameters including pagination limits.
 
 **Acceptance Criteria:**
 ```
@@ -30,15 +25,11 @@ Then it should include authentication headers
 
 ---
 
-#### Requirement: VALUESET_BASED_FILTERING
-**Capability:** ValueSet-based Classification 
+### Requirement: VALUESET_BASED_FILTERING
+**Capability:** ValueSet-based Classification
 #### Scenario: Filter encounters using PH Road Safety IG ValueSets instead of ad-hoc SNOMED codes
 
-**Requirement:** The system SHALL use PH Road Safety IG-defined ValueSets for classifying:
-- Road traffic encounters (instead of TRAFFIC_KEYWORDS)
-- Injury mechanisms (MOI)
-- Condition types
-- Observation categories
+**Requirement:** The system SHALL use PH Road Safety IG-defined ValueSets for classifying road traffic encounters (instead of TRAFFIC_KEYWORDS). The system SHALL use PH Road Safety IG-defined ValueSets for classifying injury mechanisms (MOI). The system SHALL use PH Road Safety IG-defined ValueSets for classifying condition types. The system SHALL use PH Road Safety IG-defined ValueSets for classifying observation categories.
 
 **Acceptance Criteria:**
 ```
@@ -57,15 +48,11 @@ Then match against IG-defined ValueSet for injury MOI
 
 ---
 
-#### Requirement: PAGINATION_SUPPORT
-**Capability:** Paginated FHIR Fetching 
+### Requirement: PAGINATION_SUPPORT
+**Capability:** Paginated FHIR Fetching
 #### Scenario: Retrieve large datasets efficiently using FHIR pagination
 
-**Requirement:** The system SHALL implement FHIR Bundle pagination following:
-- `_count` parameter support
-- Automatic `next` link following
-- Configurable maximum result limits
-- Progress indication for large queries
+**Requirement:** The system SHALL implement FHIR Bundle pagination following `_count` parameter support. The system SHALL implement FHIR Bundle pagination following automatic `next` link following. The system SHALL implement FHIR Bundle pagination following configurable maximum result limits. The system SHALL implement FHIR Bundle pagination following progress indication for large queries.
 
 **Acceptance Criteria:**
 ```
@@ -84,15 +71,11 @@ Then the system should retry or gracefully handle the partial dataset
 
 ---
 
-#### Requirement: OBSERVATION_PROFILE_SUPPORT
-**Capability:** PH Road Safety IG Observation Support 
+### Requirement: OBSERVATION_PROFILE_SUPPORT
+**Capability:** PH Road Safety IG Observation Support
 #### Scenario: Query and process observations per IG profiles
 
-**Requirement:** The system SHALL:
-- Fetch observations using IG-defined profile URLs
-- Support ValueSet-based code filtering for observations
-- Parse observation components per IG structure
-- Extract EMS metrics (scene time, transport time, etc.)
+**Requirement:** The system SHALL fetch observations using IG-defined profile URLs. The system SHALL support ValueSet-based code filtering for observations. The system SHALL parse observation components per IG structure. The system SHALL extract EMS metrics (scene time, transport time, etc.).
 
 **Acceptance Criteria:**
 ```
@@ -113,15 +96,11 @@ Then calculate response interval metrics as defined by IG
 
 ## MODIFIED Requirements
 
-#### Requirement: ENHANCED_ERROR_HANDLING
-**Capability:** Robust FHIR Error Handling 
+### Requirement: ENHANCED_ERROR_HANDLING
+**Capability:** Robust FHIR Error Handling
 #### Scenario: Handle FHIR server errors gracefully with retry logic
 
-**Requirement:** The system SHALL enhance error handling to:
-- Implement exponential backoff for retries
-- Distinguish between client errors (4xx) and server errors (5xx)
-- Provide user-friendly error messages via toast notifications
-- Log detailed error information for debugging
+**Requirement:** The system SHALL enhance error handling to implement exponential backoff for retries. The system SHALL enhance error handling to distinguish between client errors (4xx) and server errors (5xx). The system SHALL enhance error handling to provide user-friendly error messages via toast notifications. The system SHALL enhance error handling to log detailed error information for debugging.
 
 **Acceptance Criteria:**
 ```
@@ -144,15 +123,11 @@ Then retry with increased timeout and inform user of delay
 
 ---
 
-#### Requirement: FHIR_CACHING
-**Capability:** FHIR Response Caching 
+### Requirement: FHIR_CACHING
+**Capability:** FHIR Response Caching
 #### Scenario: Cache resolved resources to avoid redundant FHIR calls
 
-**Requirement:** The system SHALL cache:
-- Resolved Patient resources (already partially implemented)
-- ValueSet expansions (repeat lookups)
-- Encounter aggregations (within reasonable TTL)
-- Configuration values
+**Requirement:** The system SHALL cache resolved Patient resources (already partially implemented). The system SHALL cache ValueSet expansions (repeat lookups). The system SHALL cache encounter aggregations (within reasonable TTL). The system SHALL cache configuration values.
 
 **Acceptance Criteria:**
 ```

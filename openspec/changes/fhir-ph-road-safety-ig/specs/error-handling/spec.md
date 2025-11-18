@@ -2,15 +2,11 @@
 
 ## ADDED Requirements
 
-#### Requirement: FHIR_ERROR_BOUNDARY
-**Capability:** Error Boundary for FHIR Components 
+### Requirement: FHIR_ERROR_BOUNDARY
+**Capability:** Error Boundary for FHIR Components
 #### Scenario: Prevent crashes from FHIR data parsing errors
 
-**Requirement:** The system SHALL implement React error boundaries around:
-- Dashboard component
-- Individual chart components
-- Data tables
-- FHIR fetch operations
+**Requirement:** The system SHALL implement React error boundaries around dashboard component. The system SHALL implement React error boundaries around individual chart components. The system SHALL implement React error boundaries around data tables. The system SHALL implement React error boundaries around FHIR fetch operations.
 
 **Acceptance Criteria:**
 ```
@@ -29,15 +25,11 @@ Then show "Data unavailable" message in place of chart
 
 ---
 
-#### Requirement: FETCH_RETRY_LOGIC
-**Capability:** Exponential Backoff Retry 
+### Requirement: FETCH_RETRY_LOGIC
+**Capability:** Exponential Backoff Retry
 #### Scenario: Automatically retry failed FHIR requests
 
-**Requirement:** The system SHALL implement exponential backoff for failed requests:
-- Base retry delay: 1 second
-- Maximum retry attempts: 3
-- Jitter to prevent thundering herd
-- Distinguish retryable vs non-retryable errors
+**Requirement:** The system SHALL implement exponential backoff for failed requests with base retry delay of 1 second. The system SHALL implement exponential backoff for failed requests with maximum retry attempts of 3. The system SHALL implement exponential backoff for failed requests with jitter to prevent thundering herd. The system SHALL implement exponential backoff for failed requests to distinguish retryable vs non-retryable errors.
 
 **Acceptance Criteria:**
 ```
@@ -56,16 +48,11 @@ Then halt retries and display auth error
 
 ---
 
-#### Requirement: USER_ERROR_MESSAGES
-**Capability:** User-Friendly Error Messages 
+### Requirement: USER_ERROR_MESSAGES
+**Capability:** User-Friendly Error Messages
 #### Scenario: Display meaningful errors to end users
 
-**Requirement:** The system SHALL provide user-friendly error messages for:
-- Network timeouts
-- Authentication failures
-- FHIR server errors
-- Missing data
-- Unsupported features
+**Requirement:** The system SHALL provide user-friendly error messages for network timeouts. The system SHALL provide user-friendly error messages for authentication failures. The system SHALL provide user-friendly error messages for FHIR server errors. The system SHALL provide user-friendly error messages for missing data. The system SHALL provide user-friendly error messages for unsupported features.
 
 **Acceptance Criteria:**
 ```
@@ -84,16 +71,11 @@ Then display: "Network timeout. Check your connection or try again later."
 
 ---
 
-#### Requirement: PARTIAL_DATA_HANDLING
-**Capability:** Graceful Partial Data Handling 
+### Requirement: PARTIAL_DATA_HANDLING
+**Capability:** Graceful Partial Data Handling
 #### Scenario: Handle missing or incomplete FHIR data
 
-**Requirement:** The system SHALL gracefully handle:
-- Missing patient references in encounters
-- Conditions/observations without codes
-- Incomplete observation components
-- Missing ValueSet expansions
-- Null value handling in charts
+**Requirement:** The system SHALL gracefully handle missing patient references in encounters. The system SHALL gracefully handle conditions/observations without codes. The system SHALL gracefully handle incomplete observation components. The system SHALL gracefully handle missing ValueSet expansions. The system SHALL gracefully handle null value handling in charts.
 
 **Acceptance Criteria:**
 ```
@@ -116,16 +98,11 @@ Then place at end of list or filter out, not crash
 
 ---
 
-#### Requirement: LOGGING_FRAMEWORK
-**Capability:** Debug Logging Framework 
+### Requirement: LOGGING_FRAMEWORK
+**Capability:** Debug Logging Framework
 #### Scenario: Enable detailed logging for troubleshooting
 
-**Requirement:** The system SHALL implement debug logging with levels:
-- ERROR: Unexpected failures
-- WARN: Data quality issues, deprecated features
-- INFO: Normal operations (FHIR queries, cache hits/misses)
-- DEBUG: Detailed request/response data
-- Configurable via environment variable: `VITE_LOG_LEVEL`
+**Requirement:** The system SHALL implement debug logging with ERROR level for unexpected failures. The system SHALL implement debug logging with WARN level for data quality issues, deprecated features. The system SHALL implement debug logging with INFO level for normal operations (FHIR queries, cache hits/misses). The system SHALL implement debug logging with DEBUG level for detailed request/response data. The system SHALL make debug logging configurable via environment variable: `VITE_LOG_LEVEL`.
 
 **Acceptance Criteria:**
 ```
@@ -143,15 +120,11 @@ Then only log warnings and errors (no debug/info)
 
 ---
 
-#### Requirement: SKELETON_LOADING_ENHANCED
-**Capability:** Enhanced Loading States 
+### Requirement: SKELETON_LOADING_ENHANCED
+**Capability:** Enhanced Loading States
 #### Scenario: Provide better loading feedback for slow operations
 
-**Requirement:** The system SHALL enhance skeleton loaders to show:
-- Loading stage (e.g., "Fetching encounters...", "Resolving patients...")
-- Progress indication when known
-- Partial loading (show available data while loading rest)
-- Animated placeholders matching chart layouts
+**Requirement:** The system SHALL enhance skeleton loaders to show loading stage (e.g., "Fetching encounters...", "Resolving patients..."). The system SHALL enhance skeleton loaders to show progress indication when known. The system SHALL enhance skeleton loaders to show partial loading (show available data while loading rest). The system SHALL enhance skeleton loaders to show animated placeholders matching chart layouts.
 
 **Acceptance Criteria:**
 ```
@@ -172,16 +145,11 @@ Then show encounters table with patient columns as "Loading..."
 
 ## MODIFIED Requirements
 
-#### Requirement: TOAST_NOTIFICATIONS_ENHANCED
-**Capability:** Enhanced Toast Notifications 
+### Requirement: TOAST_NOTIFICATIONS_ENHANCED
+**Capability:** Enhanced Toast Notifications
 #### Scenario: Better error and success notifications
 
-**Requirement:** The system SHALL enhance toast notifications to:
-- Support different variants (success, error, warning, info)
-- Include action buttons (e.g., "Retry", "View details")
-- Auto-dismiss appropriate messages
-- Queue multiple notifications
-- Include error codes/tracing for support
+**Requirement:** The system SHALL enhance toast notifications to support different variants (success, error, warning, info). The system SHALL enhance toast notifications to include action buttons (e.g., "Retry", "View details"). The system SHALL enhance toast notifications to auto-dismiss appropriate messages. The system SHALL enhance toast notifications to queue multiple notifications. The system SHALL enhance toast notifications to include error codes/tracing for support.
 
 **Acceptance Criteria:**
 ```
@@ -200,15 +168,11 @@ Then queue them with appropriate delays between dismissals
 
 ---
 
-#### Requirement: DATA_VALIDATION
-**Capability:** FHIR Data Validation 
+### Requirement: DATA_VALIDATION
+**Capability:** FHIR Data Validation
 #### Scenario: Validate FHIR resources against IG profiles
 
-**Requirement:** The system SHALL validate FHIR resources received from server:
-- Check required fields per IG profiles
-- Validate code values are from expected ValueSets
-- Warn on missing optional but recommended fields
-- Schema validation for structure
+**Requirement:** The system SHALL validate FHIR resources received from server to check required fields per IG profiles. The system SHALL validate FHIR resources received from server to validate code values are from expected ValueSets. The system SHALL validate FHIR resources received from server to warn on missing optional but recommended fields. The system SHALL validate FHIR resources received from server to perform schema validation for structure.
 
 **Acceptance Criteria:**
 ```

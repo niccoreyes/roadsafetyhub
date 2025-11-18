@@ -2,15 +2,11 @@
 
 ## ADDED Requirements
 
-#### Requirement: VALUES_CACHING
-**Capability:** ValueSet and Code System Caching 
+### Requirement: VALUES_CACHING
+**Capability:** ValueSet and Code System Caching
 #### Scenario: Cache FHIR terminology resources
 
-**Requirement:** The system SHALL cache:
-- ValueSet expansions (TTL: 5 minutes)
-- Code lookup results (TTL: 1 hour)
-- Patient resources (current, enhanced TTL control)
-- Configuration values (TTL: session duration)
+**Requirement:** The system SHALL cache ValueSet expansions (TTL: 5 minutes). The system SHALL cache code lookup results (TTL: 1 hour). The system SHALL cache patient resources (current, enhanced TTL control). The system SHALL cache configuration values (TTL: session duration).
 
 **Acceptance Criteria:**
 ```
@@ -29,15 +25,11 @@ Then refetch from FHIR server
 
 ---
 
-#### Requirement: BATCH_PATIENT_FETCH
-**Capability:** Batch Patient Resolution 
+### Requirement: BATCH_PATIENT_FETCH
+**Capability:** Batch Patient Resolution
 #### Scenario: Fetch multiple patients in a single request
 
-**Requirement:** The system SHALL batch patient fetches using:
-- `_search` endpoint with `POST` for large patient ID lists
-- Maximum batch size: 100 IDs per request
-- Parallel batch processing for >100 IDs
-- Progress callback for large datasets
+**Requirement:** The system SHALL batch patient fetches using `_search` endpoint with `POST` for large patient ID lists. The system SHALL batch patient fetches using maximum batch size of 100 IDs per request. The system SHALL batch patient fetches using parallel batch processing for >100 IDs. The system SHALL batch patient fetches using progress callback for large datasets.
 
 **Acceptance Criteria:**
 ```
@@ -56,15 +48,11 @@ Then retry the failed batch, not all patients
 
 ---
 
-#### Requirement: LAZY_LOADING_CHARTS
-**Capability:** Lazy Chart Loading 
+### Requirement: LAZY_LOADING_CHARTS
+**Capability:** Lazy Chart Loading
 #### Scenario: Defer chart rendering until in viewport
 
-**Requirement:** The system SHALL implement lazy loading for:
-- Chart components below the fold
-- Data tables with large datasets
-- Detailed views hidden behind tabs
-- Images or large datasets
+**Requirement:** The system SHALL implement lazy loading for chart components below the fold. The system SHALL implement lazy loading for data tables with large datasets. The system SHALL implement lazy loading for detailed views hidden behind tabs. The system SHALL implement lazy loading for images or large datasets.
 
 **Acceptance Criteria:**
 ```
@@ -87,15 +75,11 @@ Then use virtual scrolling or pagination for performance
 
 ---
 
-#### Requirement: MEMOIZATION
-**Capability:** React Component Memoization 
+### Requirement: MEMOIZATION
+**Capability:** React Component Memoization
 #### Scenario: Prevent unnecessary re-renders
 
-**Requirement:** The system SHALL use:
-- `React.memo()` for pure chart components
-- `useMemo()` for expensive calculations (metrics, groupings)
-- `useCallback()` for event handlers
-- Optimize recharts with custom `isEqual` comparison
+**Requirement:** The system SHALL use `React.memo()` for pure chart components. The system SHALL use `useMemo()` for expensive calculations (metrics, groupings). The system SHALL use `useCallback()` for event handlers. The system SHALL optimize recharts with custom `isEqual` comparison.
 
 **Acceptance Criteria:**
 ```
@@ -114,8 +98,8 @@ Then use memoized value
 
 ---
 
-#### Requirement: DEBOUNCED_SEARCH
-**Capability:** Debounced Filter Search 
+### Requirement: DEBOUNCED_SEARCH
+**Capability:** Debounced Filter Search
 #### Scenario: Improve performance of search/filter inputs
 
 **Requirement:** The system SHALL debounce search/filter operations:
@@ -139,8 +123,8 @@ Then cancel the pending search request
 
 ---
 
-#### Requirement: COMPRESSION
-**Capability:** Response Compression 
+### Requirement: COMPRESSION
+**Capability:** Response Compression
 #### Scenario: Enable compression for large FHIR responses
 
 **Requirement:** The system SHALL:
@@ -165,8 +149,8 @@ Then log: "Received 250KB (compressed from 1.2MB)"
 
 ---
 
-#### Requirement: BACKGROUND_PREFETCH
-**Capability:** Background Data Prefetching 
+### Requirement: BACKGROUND_PREFETCH
+**Capability:** Background Data Prefetching
 #### Scenario: Predictively load next data range
 
 **Requirement:** The system SHALL prefetch:
@@ -196,8 +180,8 @@ Then prefetch frequently used ValueSets
 
 ---
 
-#### Requirement: WEB_WORKERS
-**Capability:** Web Worker for Heavy Calculations 
+### Requirement: WEB_WORKERS
+**Capability:** Web Worker for Heavy Calculations
 #### Scenario: Move expensive computations off main thread
 
 **Requirement:** The system SHALL use Web Workers for:
@@ -223,8 +207,8 @@ Then update UI with Worker message
 
 ---
 
-#### Requirement: BUNDLE_SIZE_OPTIMIZATION
-**Capability:** Code Splitting and Bundle Optimization 
+### Requirement: BUNDLE_SIZE_OPTIMIZATION
+**Capability:** Code Splitting and Bundle Optimization
 #### Scenario: Reduce initial bundle size
 
 **Requirement:** The system SHALL:
@@ -254,8 +238,8 @@ Then main bundle should be under 500KB (gzipped)
 
 ---
 
-#### Requirement: FHIR_SEARCH_OPTIMIZATION
-**Capability:** Optimized FHIR Search Queries 
+### Requirement: FHIR_SEARCH_OPTIMIZATION
+**Capability:** Optimized FHIR Search Queries
 #### Scenario: Reduce FHIR server load
 
 **Requirement:** The system SHALL optimize queries:
@@ -281,8 +265,8 @@ Then exclude fields like `meta`, `text`, `contained` via `_elements`
 
 ---
 
-#### Requirement: STORAGE_PERSISTENCE
-**Capability:** Local Storage Persistence 
+### Requirement: STORAGE_PERSISTENCE
+**Capability:** Local Storage Persistence
 #### Scenario: Cache data across browser sessions
 
 **Requirement:** The system SHALL persist to localStorage:
@@ -310,8 +294,8 @@ Then fetch fresh data instead of using stale cache
 
 ## MODIFIED Requirements
 
-#### Requirement: PATIENT_CACHE_ENHANCED
-**Capability:** Enhanced Patient Caching 
+### Requirement: PATIENT_CACHE_ENHANCED
+**Capability:** Enhanced Patient Caching
 #### Scenario: Improve cache efficiency
 
 **Requirement:** The system SHALL enhance patient caching:
@@ -337,8 +321,8 @@ Then see cache hit ratio and eviction statistics
 
 ---
 
-#### Requirement: REACT_QUERY_PERFORMANCE
-**Capability:** React Query Performance Tuning 
+### Requirement: REACT_QUERY_PERFORMANCE
+**Capability:** React Query Performance Tuning
 #### Scenario: Optimize React Query settings
 
 **Requirement:** The system SHALL tune React Query:

@@ -3,6 +3,18 @@
 ## Change ID
 `fhir-ph-road-safety-ig`
 
+## Why
+The Road Safety Analytics Dashboard currently uses generic FHIR queries and hardcoded SNOMED code mappings that don't align with healthcare interoperability standards. This creates inconsistent data classification and limits the dashboard's applicability in healthcare environments. To ensure standardized, reliable, and interoperable road safety analytics, we need to fully implement the PH Road Safety Implementation Guide (IG) specifications.
+
+## What Changes
+This change implements comprehensive FHIR PH Road Safety IG support by:
+- Replacing hardcoded SNOMED mappings with IG-defined ValueSet-based classification
+- Adding configuration management system for FHIR server settings
+- Enhancing dashboard visualizations to use IG-defined categories
+- Implementing robust error handling and performance optimizations
+- Adding new chart components for EMS metrics and trends
+- Updating metric calculations to align with IG KPIs
+
 ## Summary
 Implement comprehensive FHIR PH Road Safety Implementation Guide (IG) support for the road safety analytics dashboard. This change upgrades the existing generic FHIR-based dashboard to specifically align with PH Road Safety IG profiles, ValueSets, and code systems for accurate categorization and aggregation of road traffic accident data.
 
