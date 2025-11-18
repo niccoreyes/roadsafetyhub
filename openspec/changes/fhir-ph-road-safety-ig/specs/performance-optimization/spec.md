@@ -3,11 +3,9 @@
 ## ADDED Requirements
 
 ### Requirement: VALUES_CACHING
-**Capability:** ValueSet and Code System Caching
+The system SHALL cache ValueSet expansions (TTL: 5 minutes). The system SHALL cache code lookup results (TTL: 1 hour). The system SHALL cache patient resources (current, enhanced TTL control). The system SHALL cache configuration values (TTL: session duration).
+
 #### Scenario: Cache FHIR terminology resources
-
-**Requirement:** The system SHALL cache ValueSet expansions (TTL: 5 minutes). The system SHALL cache code lookup results (TTL: 1 hour). The system SHALL cache patient resources (current, enhanced TTL control). The system SHALL cache configuration values (TTL: session duration).
-
 **Acceptance Criteria:**
 ```
 Given a ValueSet expansion is performed
@@ -26,11 +24,9 @@ Then refetch from FHIR server
 ---
 
 ### Requirement: BATCH_PATIENT_FETCH
-**Capability:** Batch Patient Resolution
+The system SHALL batch patient fetches using `_search` endpoint with `POST` for large patient ID lists. The system SHALL batch patient fetches using maximum batch size of 100 IDs per request. The system SHALL batch patient fetches using parallel batch processing for >100 IDs. The system SHALL batch patient fetches using progress callback for large datasets.
+
 #### Scenario: Fetch multiple patients in a single request
-
-**Requirement:** The system SHALL batch patient fetches using `_search` endpoint with `POST` for large patient ID lists. The system SHALL batch patient fetches using maximum batch size of 100 IDs per request. The system SHALL batch patient fetches using parallel batch processing for >100 IDs. The system SHALL batch patient fetches using progress callback for large datasets.
-
 **Acceptance Criteria:**
 ```
 Given 250 patient IDs to resolve from encounters
@@ -49,11 +45,9 @@ Then retry the failed batch, not all patients
 ---
 
 ### Requirement: LAZY_LOADING_CHARTS
-**Capability:** Lazy Chart Loading
+The system SHALL implement lazy loading for chart components below the fold. The system SHALL implement lazy loading for data tables with large datasets. The system SHALL implement lazy loading for detailed views hidden behind tabs. The system SHALL implement lazy loading for images or large datasets.
+
 #### Scenario: Defer chart rendering until in viewport
-
-**Requirement:** The system SHALL implement lazy loading for chart components below the fold. The system SHALL implement lazy loading for data tables with large datasets. The system SHALL implement lazy loading for detailed views hidden behind tabs. The system SHALL implement lazy loading for images or large datasets.
-
 **Acceptance Criteria:**
 ```
 Given a dashboard with multiple chart sections
@@ -76,11 +70,9 @@ Then use virtual scrolling or pagination for performance
 ---
 
 ### Requirement: MEMOIZATION
-**Capability:** React Component Memoization
+The system SHALL use `React.memo()` for pure chart components. The system SHALL use `useMemo()` for expensive calculations (metrics, groupings). The system SHALL use `useCallback()` for event handlers. The system SHALL optimize recharts with custom `isEqual` comparison.
+
 #### Scenario: Prevent unnecessary re-renders
-
-**Requirement:** The system SHALL use `React.memo()` for pure chart components. The system SHALL use `useMemo()` for expensive calculations (metrics, groupings). The system SHALL use `useCallback()` for event handlers. The system SHALL optimize recharts with custom `isEqual` comparison.
-
 **Acceptance Criteria:**
 ```
 Given chart data has not changed
@@ -99,14 +91,9 @@ Then use memoized value
 ---
 
 ### Requirement: DEBOUNCED_SEARCH
-**Capability:** Debounced Filter Search
+The system SHALL debounce search/filter operations with debounce delay of 300ms. The system SHALL debounce search/filter operations to cancel previous in-flight requests. The system SHALL debounce search/filter operations to show "Searching..." indicator during debounce.
+
 #### Scenario: Improve performance of search/filter inputs
-
-**Requirement:** The system SHALL debounce search/filter operations:
-- Debounce delay: 300ms
-- Cancel previous in-flight requests
-- Show "Searching..." indicator during debounce
-
 **Acceptance Criteria:**
 ```
 Given user types in search field rapidly
@@ -124,14 +111,9 @@ Then cancel the pending search request
 ---
 
 ### Requirement: COMPRESSION
-**Capability:** Response Compression
+The system SHALL include `Accept-Encoding: gzip, deflate` in FHIR requests. The system SHALL handle compressed responses from FHIR server. The system SHALL display compressed vs uncompressed size in debug logs.
+
 #### Scenario: Enable compression for large FHIR responses
-
-**Requirement:** The system SHALL:
-- Include `Accept-Encoding: gzip, deflate` in FHIR requests
-- Handle compressed responses from FHIR server
-- Display compressed vs uncompressed size in debug logs
-
 **Acceptance Criteria:**
 ```
 Given FHIR server supports gzip compression
@@ -150,15 +132,9 @@ Then log: "Received 250KB (compressed from 1.2MB)"
 ---
 
 ### Requirement: BACKGROUND_PREFETCH
-**Capability:** Background Data Prefetching
+The system SHALL prefetch next month's data when viewing current month. The system SHALL prefetch common ValueSets on app load. The system SHALL prefetch patient details when hovering over encounters. The system SHALL prefetch configuration values during idle time.
+
 #### Scenario: Predictively load next data range
-
-**Requirement:** The system SHALL prefetch:
-- Next month's data when viewing current month
-- Common ValueSets on app load
-- Patient details when hovering over encounters
-- Configuration values during idle time
-
 **Acceptance Criteria:**
 ```
 Given user views January 2025 data
@@ -181,15 +157,9 @@ Then prefetch frequently used ValueSets
 ---
 
 ### Requirement: WEB_WORKERS
-**Capability:** Web Worker for Heavy Calculations
+The system SHALL use Web Workers for large dataset aggregations. The system SHALL use Web Workers for complex metrics calculations. The system SHALL use Web Workers for ValueSet expansion processing. The system SHALL use Web Workers for data transformation pipelines.
+
 #### Scenario: Move expensive computations off main thread
-
-**Requirement:** The system SHALL use Web Workers for:
-- Large dataset aggregations
-- Complex metrics calculations
-- ValueSet expansion processing
-- Data transformation pipelines
-
 **Acceptance Criteria:**
 ```
 Given 10,000+ encounters to process
@@ -208,15 +178,9 @@ Then update UI with Worker message
 ---
 
 ### Requirement: BUNDLE_SIZE_OPTIMIZATION
-**Capability:** Code Splitting and Bundle Optimization
+The system SHALL code-split chart components (Recharts). The system SHALL lazy load FHIR utilities. The system SHALL use dynamic imports for less-used features. The system SHALL analyze bundle size with `rollup-plugin-analyzer`.
+
 #### Scenario: Reduce initial bundle size
-
-**Requirement:** The system SHALL:
-- Code-split chart components (Recharts)
-- Lazy load FHIR utilities
-- Use dynamic imports for less-used features
-- Analyze bundle size with `rollup-plugin-analyzer`
-
 **Acceptance Criteria:**
 ```
 Given dashboard has multiple chart types
@@ -239,15 +203,9 @@ Then main bundle should be under 500KB (gzipped)
 ---
 
 ### Requirement: FHIR_SEARCH_OPTIMIZATION
-**Capability:** Optimized FHIR Search Queries
+The system SHALL optimize queries to use `_include` and `_revinclude` to fetch related resources. The system SHALL optimize queries to fetch only necessary fields with `_elements`. The system SHALL optimize queries to use `_summary=true` when appropriate. The system SHALL optimize queries to batch multiple queries where possible.
+
 #### Scenario: Reduce FHIR server load
-
-**Requirement:** The system SHALL optimize queries:
-- Use `_include` and `_revinclude` to fetch related resources
-- Fetch only necessary fields with `_elements`
-- Use `_summary=true` when appropriate
-- Batch multiple queries where possible
-
 **Acceptance Criteria:**
 ```
 Given fetching encounters and patients
@@ -266,15 +224,9 @@ Then exclude fields like `meta`, `text`, `contained` via `_elements`
 ---
 
 ### Requirement: STORAGE_PERSISTENCE
-**Capability:** Local Storage Persistence
+The system SHALL persist to localStorage cached ValueSets (TTL enforced). The system SHALL persist to localStorage user preferences (date ranges, filters). The system SHALL persist to localStorage authentication tokens (secure). The system SHALL persist to localStorage last viewed dashboard data (stale after 1 hour).
+
 #### Scenario: Cache data across browser sessions
-
-**Requirement:** The system SHALL persist to localStorage:
-- Cached ValueSets (TTL enforced)
-- User preferences (date ranges, filters)
-- Authentication tokens (secure)
-- Last viewed dashboard data (stale after 1 hour)
-
 **Acceptance Criteria:**
 ```
 Given user sets custom date range
@@ -295,15 +247,9 @@ Then fetch fresh data instead of using stale cache
 ## MODIFIED Requirements
 
 ### Requirement: PATIENT_CACHE_ENHANCED
-**Capability:** Enhanced Patient Caching
+The system SHALL enhance patient caching with configurable TTL (default: 10 minutes). The system SHALL enhance patient caching with max cache size (default: 1000 patients). The system SHALL enhance patient caching with LRU eviction when max size reached. The system SHALL enhance patient caching with cache metrics (hit/miss tracking).
+
 #### Scenario: Improve cache efficiency
-
-**Requirement:** The system SHALL enhance patient caching:
-- Configurable TTL (default: 10 minutes)
-- Max cache size (default: 1000 patients)
-- LRU eviction when max size reached
-- Cache metrics (hit/miss tracking)
-
 **Acceptance Criteria:**
 ```
 Given patient cache has 1000 entries
@@ -322,16 +268,9 @@ Then see cache hit ratio and eviction statistics
 ---
 
 ### Requirement: REACT_QUERY_PERFORMANCE
-**Capability:** React Query Performance Tuning
+The system SHALL tune React Query with default staleTime of 5 minutes. The system SHALL tune React Query with default cacheTime of 10 minutes. The system SHALL tune React Query to not refetch on window focus (for performance). The system SHALL tune React Query to disable default retry (use custom retry logic). The system SHALL tune React Query to enable parallel queries where possible.
+
 #### Scenario: Optimize React Query settings
-
-**Requirement:** The system SHALL tune React Query:
-- Default staleTime: 5 minutes
-- Default cacheTime: 10 minutes
-- Refetch on window focus: false (for performance)
-- Retry: false (use custom retry logic)
-- Parallel queries where possible
-
 **Acceptance Criteria:**
 ```
 Given queries for encounters, conditions, observations

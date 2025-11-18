@@ -3,11 +3,9 @@
 ## ADDED Requirements
 
 ### Requirement: FHIR_CONFIG_CONTEXT
-**Capability:** FHIR Configuration Context/Provider
+The system SHALL provide a configuration context/provider. The system SHALL provide configuration for FHIR base URL, authentication settings, ValueSet identifiers and URLs, retry and timeout settings, and dashboard date range defaults.
+
 #### Scenario: Centralize FHIR server configuration
-
-**Requirement:** The system SHALL provide a configuration context/provider. The system SHALL provide configuration for FHIR base URL, authentication settings, ValueSet identifiers and URLs, retry and timeout settings, and dashboard date range defaults.
-
 **Acceptance Criteria:**
 ```
 Given a React component needs FHIR configuration
@@ -26,11 +24,9 @@ Then all consuming components should reflect new values without restart
 ---
 
 ### Requirement: ENV_VAR_SUPPORT
-**Capability:** Environment Variable Support
+The system SHALL support configuration via `.env` files for local development. The system SHALL support `import.meta.env` Vite environment variables. The system SHALL support runtime configuration JSON. The system SHALL provide sensible defaults for all values.
+
 #### Scenario: Configure via environment variables at build/deploy time
-
-**Requirement:** The system SHALL support configuration via `.env` files for local development. The system SHALL support `import.meta.env` Vite environment variables. The system SHALL support runtime configuration JSON. The system SHALL provide sensible defaults for all values.
-
 **Acceptance Criteria:**
 ```
 Given a `.env.local` file with VITE_FHIR_BASE_URL
@@ -49,11 +45,9 @@ Then use default: `https://cdr.fhirlab.net/fhir`
 ---
 
 ### Requirement: VALUESET_CONFIG
-**Capability:** ValueSet Configuration
+The system SHALL allow configuration of road traffic encounter ValueSet URL. The system SHALL allow configuration of injury MOI ValueSet URL. The system SHALL allow configuration of observation category ValueSet URLs. The system SHALL allow configuration of discharge disposition ValueSet URL.
+
 #### Scenario: Configure which ValueSets to use for classification
-
-**Requirement:** The system SHALL allow configuration of road traffic encounter ValueSet URL. The system SHALL allow configuration of injury MOI ValueSet URL. The system SHALL allow configuration of observation category ValueSet URLs. The system SHALL allow configuration of discharge disposition ValueSet URL.
-
 **Acceptance Criteria:**
 ```
 Given a custom FHIR server implements different ValueSet URLs
@@ -72,11 +66,9 @@ Then the new ValueSet should be used without code changes
 ---
 
 ### Requirement: AUTHENTICATION_CONFIG
-**Capability:** Authentication Configuration
+The system SHALL support authentication configuration with no authentication (default for public servers). The system SHALL support bearer token authentication. The system SHALL support OAuth 2.0 client credentials flow. The system SHALL support SMART on FHIR launch context.
+
 #### Scenario: Support various FHIR authentication methods
-
-**Requirement:** The system SHALL support authentication configuration with no authentication (default for public servers). The system SHALL support bearer token authentication. The system SHALL support OAuth 2.0 client credentials flow. The system SHALL support SMART on FHIR launch context.
-
 **Acceptance Criteria:**
 ```
 Given VITE_FHIR_AUTH_TYPE=bearer

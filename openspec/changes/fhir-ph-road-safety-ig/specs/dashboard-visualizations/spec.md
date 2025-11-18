@@ -3,11 +3,9 @@
 ## ADDED Requirements
 
 ### Requirement: METRIC_CARD_UPDATES
-**Capability:** Updated Metric Cards with IG requirement: Section 2.1 "Resource Queries & Aggregations"
+The system SHALL update metric cards to display IG-aligned key performance indicators. The system SHALL display number of encounters (total, accident-related). The system SHALL display fatalities (from Encounter.dischargeDisposition). The system SHALL display non-fatal injuries (from Condition resources). The system SHALL display case fatality rate ((fatal / total encounters) * 100). The system SHALL display EMS average response times (from Observation resources).
+
 #### Scenario: Display updated KPIs per IG specifications
-
-**Requirement:** The system SHALL update metric cards to display IG-aligned key performance indicators. The system SHALL display number of encounters (total, accident-related). The system SHALL display fatalities (from Encounter.dischargeDisposition). The system SHALL display non-fatal injuries (from Condition resources). The system SHALL display case fatality rate ((fatal / total encounters) * 100). The system SHALL display EMS average response times (from Observation resources).
-
 **Acceptance Criteria:**
 ```
 Given I view the dashboard
@@ -26,11 +24,9 @@ Then the metric should display 7.5% (15/200 * 100)
 ---
 
 ### Requirement: OBSERVATION_CHARTS
-**Capability:** Observation-based Charts
+The system SHALL add new chart components for response times (time to scene, time to hospital). The system SHALL add new chart components for observation types breakdown (EMS scene observations, transport observations). The system SHALL add new chart components for time-to-intervention metrics per IG definitions. The system SHALL add new chart components for line chart for temporal trends (monthly/weekly).
+
 #### Scenario: Display EMS metrics and time-based observations
-
-**Requirement:** The system SHALL add new chart components for response times (time to scene, time to hospital). The system SHALL add new chart components for observation types breakdown (EMS scene observations, transport observations). The system SHALL add new chart components for time-to-intervention metrics per IG definitions. The system SHALL add new chart components for line chart for temporal trends (monthly/weekly).
-
 **Acceptance Criteria:**
 ```
 Given EMS observations with response times in FHIR
@@ -52,11 +48,9 @@ Then display encounters, fatalities, and injuries per month with proper labeling
 ---
 
 ### Requirement: INJURY_CLASSIFICATION_CHARTS
-**Capability:** Mechanism of Injury (MOI) Charts
+The system SHALL update injury classification charts to use IG-defined MOI ValueSet categories. The system SHALL update injury classification charts to group by vehicle type, pedestrian, collision type, etc. The system SHALL support age × injury mechanism stacked/grouped bar charts. The system SHALL display counts and percentages.
+
 #### Scenario: Visualize injury mechanisms per IG ValueSets
-
-**Requirement:** The system SHALL update injury classification charts to use IG-defined MOI ValueSet categories. The system SHALL update injury classification charts to group by vehicle type, pedestrian, collision type, etc. The system SHALL support age × injury mechanism stacked/grouped bar charts. The system SHALL display counts and percentages.
-
 **Acceptance Criteria:**
 ```
 Given conditions coded with PH Road Safety IG ValueSet for MOI
@@ -76,11 +70,9 @@ Then display three bars with correct counts and total 100
 ---
 
 ### Requirement: INTERACTIVE_LEGENDS
-**Capability:** Chart Interaction
+The chart components SHALL support drill-down from aggregate charts to detailed tables. The chart components SHALL support hover tooltips with counts and percentages. The chart components SHALL support click-to-highlight related data. The chart components SHALL support filter application based on chart selection.
+
 #### Scenario: Drill-down from charts to detailed data
-
-**Requirement:** The chart components SHALL support drill-down from aggregate charts to detailed tables. The chart components SHALL support hover tooltips with counts and percentages. The chart components SHALL support click-to-highlight related data. The chart components SHALL support filter application based on chart selection.
-
 **Acceptance Criteria:**
 ```
 Given I hover over a chart element
@@ -101,11 +93,9 @@ Then apply relevant filters to detailed data tables
 ## MODIFIED Requirements
 
 ### Requirement: AGE_GROUP_ALIGNMENT
-**Capability:** IG-aligned Age Groupings
+The system SHALL update age group classifications to match IG-specified demographic categories instead of current hardcoded groups.
+
 #### Scenario: Display age groups per IG demographic definitions
-
-**Requirement:** The system SHALL update age group classifications to match IG-specified demographic categories instead of current hardcoded groups.
-
 **Acceptance Criteria:**
 ```
 Given patient demographics data
@@ -125,11 +115,9 @@ Then age groups should match those exactly (not current 0-14, 15-24, 25-44, 45-6
 ---
 
 ### Requirement: MORTALITY_DISPLAY_ENHANCED
-**Capability:** Enhanced Mortality Visualization
+The system SHALL update mortality pie chart to use `Encounter.hospitalization.dischargeDisposition` from IG ValueSet. The system SHALL show expired, transferred, discharged, and other disposition categories. The system SHALL include counts and case fatality percentage in tooltip.
+
 #### Scenario: Display disposition breakdown per IG
-
-**Requirement:** The system SHALL update mortality pie chart to use `Encounter.hospitalization.dischargeDisposition` from IG ValueSet. The system SHALL show expired, transferred, discharged, and other disposition categories. The system SHALL include counts and case fatality percentage in tooltip.
-
 **Acceptance Criteria:**
 ```
 Given encounters with various discharge dispositions
@@ -149,11 +137,9 @@ Then display 3 pie slices with correct tooltips showing counts and "5% case fata
 ---
 
 ### Requirement: SEX_CLASSIFICATION_UPDATE
-**Capability:** Enhanced Gender Display
+The system SHALL update sex/gender classification to include "unknown" and "other" categories. The system SHALL update sex/gender classification to use Patient.gender per FHIR spec. The system SHALL update sex/gender classification to show percentages in chart.
+
 #### Scenario: Display gender distribution more accurately
-
-**Requirement:** The system SHALL update sex/gender classification to include "unknown" and "other" categories. The system SHALL update sex/gender classification to use Patient.gender per FHIR spec. The system SHALL update sex/gender classification to show percentages in chart.
-
 **Acceptance Criteria:**
 ```
 Given patients with various gender values
@@ -168,11 +154,9 @@ Then display male, female, other, and unknown categories with counts and percent
 ---
 
 ### Requirement: ENHANCED_METRIC_CARDS
-**Capability:** Enhanced Metric Cards with IG-specific KPIs
+The system SHALL update metric cards to display IG-aligned key performance indicators. The system SHALL display number of encounters (total, accident-related). The system SHALL display fatalities (from Encounter.dischargeDisposition). The system SHALL display non-fatal injuries (from Condition resources). The system SHALL display case fatality rate ((fatal / total encounters) * 100). The system SHALL display EMS average response times (from Observation resources).
+
 #### Scenario: Display PH Road Safety IG key performance indicators
-
-**Requirement:** The system SHALL update metric cards to display IG-aligned key performance indicators. The system SHALL display number of encounters (total, accident-related). The system SHALL display fatalities (from Encounter.dischargeDisposition). The system SHALL display non-fatal injuries (from Condition resources). The system SHALL display case fatality rate ((fatal / total encounters) * 100). The system SHALL display EMS average response times (from Observation resources).
-
 **Acceptance Criteria:**
 ```
 Given I view the dashboard
