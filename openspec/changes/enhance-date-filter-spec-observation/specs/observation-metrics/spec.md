@@ -40,7 +40,7 @@ The system SHALL identify and count Observation resources containing the SNOMED 
       {
         "system": "http://snomed.info/sct/900000000000207008/version/20241001",
         "code": "274215009",
-        "display": "Vital Signs"
+        "display": "Transport accident (event)"
       }
     ]
   }
@@ -54,31 +54,31 @@ The system SHALL identify and count Observation resources containing the SNOMED 
 - **WHEN** the filtering logic checks this observation
 - **THEN** it is excluded from the count
 
-### Requirement: Vital Signs Assessment Metrics Card
+### Requirement: Transport Accident Metrics Card
 The dashboard SHALL display a metric card showing the count of observations matching SNOMED CT code 274215009, positioned in the Key Metrics section alongside other critical health metrics.
 
-#### Scenario: Display vital signs assessment count
+#### Scenario: Display transport accident count
 - **GIVEN** the dashboard has loaded observations for the selected date range
 - **AND** 42 observations match SNOMED CT code 274215009
 - **WHEN** the user views the Key Metrics section
 - **THEN** a metric card displays:
-  - Title: "Vital Signs Assessments"
+  - Title: "Transport Accidents"
   - Value: 42
-  - Unit: "assessments"
-  - Icon: Heart pulse (from lucide-react)
-  - Description: "Number of vital signs observations recorded"
+  - Unit: "#"
+  - Icon: Activity (from lucide-react)
+  - Description: "Observations with SNOMED CT code 274215009 (Transport accident)"
 - **AND** the loading state is shared with other metrics during data refresh
 
-#### Scenario: Zero vital signs assessments
+#### Scenario: Zero transport accidents
 - **GIVEN** no observations match SNOMED CT code 274215009 for the selected date range
 - **WHEN** the metric card renders
 - **THEN** it displays value "0" with neutral styling (not error state)
-- **AND** the description updates to indicate no assessments recorded
+- **AND** the description updates to indicate no transport accidents recorded
 
 #### Scenario: Observation data loading state
 - **GIVEN** observations are being fetched from the server
 - **WHEN** the metrics are calculating
-- **THEN** the Vital Signs Assessment card displays a skeleton loading state
+- **THEN** the Transport Accident card displays a skeleton loading state
 - **AND** matches the loading behavior of existing metric cards
 - **AND** updates to show real data once fetch and filtering complete
 
@@ -91,7 +91,7 @@ The system SHALL process observation metrics calculations asynchronously alongsi
 - **THEN** all metric cards enter loading state
 - **AND** observation fetch executes with new date range parameters
 - **AND** SNOMED CT filtering applies to the updated observations
-- **AND** the Vital Signs Assessment card updates with new count
+- **AND** the Transport Accident card updates with new count
 - **AND** all other metrics refresh simultaneously
 
 #### Scenario: Parallel metric calculations

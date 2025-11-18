@@ -1,7 +1,7 @@
 # Change: Enhanced Date Filter and Specific Observation Metrics
 
 ## Why
-The current dashboard uses separate start date and end date pickers, which is less intuitive for users. Additionally, the dashboard lacks targeted analytics for specific FHIR Observations using the PH Road Safety IG SNOMED CT code 274215009 for Vital Signs assessment. Users need to:
+The current dashboard uses separate start date and end date pickers, which is less intuitive for users. Additionally, the dashboard lacks targeted analytics for specific FHIR Observations using the PH Road Safety IG SNOMED CT code 274215009 for Transport accident. Users need to:
 1. Select date ranges more efficiently with a unified date range picker component
 2. Filter all FHIR resources (Encounters, Conditions, Observations) to only include those created within the selected date range
 3. View specific metrics for observations matching the PH Road Safety IG SNOMED CT code 274215009 (http://snomed.info/sct/900000000000207008/version/20241001)

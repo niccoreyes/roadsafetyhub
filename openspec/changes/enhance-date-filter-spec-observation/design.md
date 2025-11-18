@@ -40,7 +40,7 @@ The dashboard currently uses separate start and end date pickers which requires 
 - **Extensibility**: Design utility function to support additional SNOMED codes
 
 ### 4. Observation Metrics Card
-**Decision**: Add new MetricCard with title "Vital Signs Assessments" in Key Metrics section
+**Decision**: Add new MetricCard with title "Transport Accidents" in Key Metrics section
 - **Rationale**: Consistent UX with existing metrics cards, positioned as key health assessment indicator
 - **Icon**: Use Heart pulse or Activity icon from lucide-react
 - **Loading**: Share loading state with other metrics or implement independent loading for better UX

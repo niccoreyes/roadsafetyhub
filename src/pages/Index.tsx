@@ -76,9 +76,9 @@ const Index = () => {
     },
   });
 
-  // Fetch observations with SNOMED CT code 274215009
-  const { data: vitalSignsData, isLoading: vitalSignsLoading } = useQuery({
-    queryKey: ["vitalSignsObservations", date],
+  // Fetch observations with SNOMED CT code 274215009 for Transport accident (event)
+  const { data: transportAccidentData, isLoading: transportAccidentLoading } = useQuery({
+    queryKey: ["transportAccidentObservations", date],
     queryFn: async () => {
       try {
         if (!date) {
@@ -93,7 +93,7 @@ const Index = () => {
           try {
             return obs?.code?.coding?.some((coding: any) =>
               coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001" &&
-              coding?.code === "49817004"  // SNOMED CT code for Transport accident (event)
+              coding?.code === "274215009"  // SNOMED CT code for Transport accident (event)
             );
           } catch (error) {
             console.warn("Error while filtering observation", error);
@@ -133,7 +133,7 @@ const Index = () => {
 
   const encounters = encountersData || [];
   const conditions = conditionsData || [];
-  const vitalSignsObservations = vitalSignsData || [];
+  const transportAccidentObservations = transportAccidentData || [];
   const patients = patientsData || new Map();
   const isLoading = encountersLoading || conditionsLoading || patientsLoading;
 
@@ -144,14 +144,14 @@ const Index = () => {
   const [sexGroups, setSexGroups] = useState<Record<string, number>>({});
   const [expiredCount, setExpiredCount] = useState<number>(0);
   const [survivedCount, setSurvivedCount] = useState<number>(0);
-  const [vitalSignsCount, setVitalSignsCount] = useState<number>(0);
+  const [transportAccidentCount, setTransportAccidentCount] = useState<number>(0);
 
   // Additional state for async processing
   const [isMetricsLoading, setIsMetricsLoading] = useState(false);
 
   // Calculate metrics when data changes
   useEffect(() => {
-    if (encounters.length > 0 || conditions.length > 0 || vitalSignsObservations.length > 0) {
+    if (encounters.length > 0 || conditions.length > 0 || transportAccidentObservations.length > 0) {
       setIsMetricsLoading(true);
 
       const calculateAsyncMetrics = async () => {
@@ -167,8 +167,8 @@ const Index = () => {
         const calculatedExpiredCount = expiredResults.filter(Boolean).length;
         const calculatedSurvivedCount = encounters.length - calculatedExpiredCount;
 
-        // Calculate vital signs count
-        const calculatedVitalSignsCount = vitalSignsObservations.length;
+        // Calculate transport accident count
+        const calculatedTransportAccidentCount = transportAccidentObservations.length;
 
         setMetrics(calculatedMetrics);
         setInjuryGroups(calculatedInjuryGroups);
@@ -176,15 +176,15 @@ const Index = () => {
         setSexGroups(calculatedSexGroups);
         setExpiredCount(calculatedExpiredCount);
         setSurvivedCount(calculatedSurvivedCount);
-        setVitalSignsCount(calculatedVitalSignsCount);
+        setTransportAccidentCount(calculatedTransportAccidentCount);
         setIsMetricsLoading(false);
       };
 
       calculateAsyncMetrics();
     }
-  }, [encounters, conditions, vitalSignsObservations, patients]);
+  }, [encounters, conditions, transportAccidentObservations, patients]);
 
-  const finalIsLoading = isLoading || isMetricsLoading || vitalSignsLoading;
+  const finalIsLoading = isLoading || isMetricsLoading || transportAccidentLoading;
 
   const handleRefresh = () => {
     refetchEncounters();
@@ -321,13 +321,13 @@ const Index = () => {
               isLoading={finalIsLoading}
             />
             <MetricCard
-              title="Vital Signs Assessments"
-              value={vitalSignsCount || 0}
+              title="Transport Accidents"
+              value={transportAccidentCount || 0}
               unit="#"
               icon={Activity}
-              description="Observations with SNOMED CT code 274215009 (Vital Signs assessment)"
-              tooltip="Number of FHIR Observation resources with SNOMED CT code 274215009 (Vital Signs assessment) during the selected date range"
-              isLoading={finalIsLoading || vitalSignsLoading}
+              description="Observations with SNOMED CT code 274215009 (Transport accident)"
+              tooltip="Number of FHIR Observation resources with SNOMED CT code 274215009 (Transport accident) during the selected date range"
+              isLoading={finalIsLoading || transportAccidentLoading}
             />
           </div>
         </section>

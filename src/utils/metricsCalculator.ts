@@ -226,9 +226,9 @@ export function groupBySex(patients: Map<string, any>): Record<string, number> {
 }
 
 /**
- * Counts observations that match the PH Road Safety IG SNOMED CT code 274215009 for Vital Signs assessment
+ * Counts observations that match the PH Road Safety IG SNOMED CT code 274215009 for Transport accident
  */
-export function countVitalSignsAssessments(observations: any[]): number {
+export function countTransportAccidents(observations: any[]): number {
   if (!Array.isArray(observations)) {
     console.warn("observations is not an array, returning 0");
     return 0;
