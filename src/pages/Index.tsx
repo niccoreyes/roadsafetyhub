@@ -88,19 +88,19 @@ const Index = () => {
           format(date.from, "yyyy-MM-dd"),
           format(date.to, "yyyy-MM-dd")
         );
-        // Filter for SNOMED CT code 274215009 (Vital Signs assessment)
-        const vitalSignsObservations = observations.filter(obs => {
+        // Filter for SNOMED CT code for Transport accident (event)
+        const transportAccidentObservations = observations.filter(obs => {
           try {
             return obs?.code?.coding?.some((coding: any) =>
               coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001" &&
-              coding?.code === "274215009"
+              coding?.code === "49817004"  // SNOMED CT code for Transport accident (event)
             );
           } catch (error) {
             console.warn("Error while filtering observation", error);
             return false;
           }
         });
-        return vitalSignsObservations;
+        return transportAccidentObservations;
       } catch (error) {
         toast({
           title: "Error fetching observations",
@@ -281,6 +281,7 @@ const Index = () => {
               unit="per 100k"
               icon={AlertCircle}
               description="Traffic accident deaths per 100,000 population"
+              tooltip="Number of traffic accident deaths per 100,000 people in the population during the selected date range"
               isLoading={finalIsLoading}
             />
             <MetricCard
@@ -289,6 +290,7 @@ const Index = () => {
               unit="per 10k"
               icon={Car}
               description="Road traffic deaths per 10,000 motor vehicles"
+              tooltip="Number of road traffic deaths per 10,000 registered motor vehicles during the selected date range"
               isLoading={finalIsLoading}
             />
             <MetricCard
@@ -297,6 +299,7 @@ const Index = () => {
               unit="per 100k"
               icon={TrendingUp}
               description="Non-fatal injuries per 100,000 population"
+              tooltip="Number of non-fatal traffic-related injuries per 100,000 people in the population during the selected date range"
               isLoading={finalIsLoading}
             />
             <MetricCard
@@ -305,6 +308,7 @@ const Index = () => {
               unit="%"
               icon={Activity}
               description="Percentage of accidents resulting in death"
+              tooltip="Percentage of traffic accidents that resulted in death during the selected date range"
               isLoading={finalIsLoading}
             />
             <MetricCard
@@ -313,6 +317,7 @@ const Index = () => {
               unit="per 10k"
               icon={Users}
               description="Reported accidents per 10,000 vehicles"
+              tooltip="Number of reported traffic accidents per 10,000 registered vehicles during the selected date range"
               isLoading={finalIsLoading}
             />
             <MetricCard
@@ -321,6 +326,7 @@ const Index = () => {
               unit="#"
               icon={Activity}
               description="Observations with SNOMED CT code 274215009 (Vital Signs assessment)"
+              tooltip="Number of FHIR Observation resources with SNOMED CT code 274215009 (Vital Signs assessment) during the selected date range"
               isLoading={finalIsLoading || vitalSignsLoading}
             />
           </div>

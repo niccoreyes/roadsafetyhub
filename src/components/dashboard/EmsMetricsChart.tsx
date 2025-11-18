@@ -1,5 +1,12 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info } from 'lucide-react';
 
 interface EmsMetricsChartProps {
   data: {
@@ -29,9 +36,48 @@ const EmsMetricsChart: React.FC<EmsMetricsChartProps> = ({ data, isLoading }) =>
     );
   }
 
+  // Custom tooltip to explain FHIR paths
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-md">
+          <p className="font-bold">{`Metric: ${label}`}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ color: entry.color }} className="capitalize">
+              {`${entry.name}: ${entry.value} min`}
+              {entry.name === 'avg' && (
+                <span className="block text-xs text-gray-500">FHIR Path: Calculated from emergency service timestamps</span>
+              )}
+              {entry.name === 'median' && (
+                <span className="block text-xs text-gray-500">FHIR Path: Calculated from emergency service timestamps</span>
+              )}
+            </p>
+          ))}
+          <p className="text-xs text-blue-500 mt-2">Note: Data is simulated for demonstration purposes</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
-      <h3 className="text-lg font-semibold mb-4">EMS Response Metrics</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold mb-4">EMS Response Metrics</h3>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-4 w-4 text-gray-500 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">
+                <strong>Average/Median:</strong> Time calculations from emergency service timestamps<br />
+                <strong>Note:</strong> This chart currently displays simulated data based on PH Road Safety IG metrics
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -46,17 +92,14 @@ const EmsMetricsChart: React.FC<EmsMetricsChartProps> = ({ data, isLoading }) =>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis label={{ value: 'Minutes', angle: -90, position: 'insideLeft' }} />
-            <Tooltip 
-              formatter={(value) => [`${value} min`, 'Time']}
-              labelFormatter={(label) => `Metric: ${label}`}
-            />
+            <RechartsTooltip content={<CustomTooltip />} />
             <Legend />
             <Bar dataKey="avg" name="Average" fill="#8884d8" />
             <Bar dataKey="median" name="Median" fill="#82ca9d" />
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-sm text-gray-500 mt-2">Note: Time measurements in minutes</p>
+      <p className="text-sm text-gray-500 mt-2">Note: Time measurements in minutes (simulated data)</p>
     </div>
   );
 };
