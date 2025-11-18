@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, TrendingUp, AlertCircle, Car, Users, Calendar as CalendarIcon } from "lucide-react";
+import { Activity, TrendingUp, Car, Users, Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -194,6 +194,20 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Simulated Data Banner */}
+      <div className="bg-yellow-50 border-b border-yellow-200 py-3">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+              <p className="text-sm text-yellow-800">
+                Note: All displayed data is simulated for demonstration purposes
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-6">
@@ -206,7 +220,7 @@ const Index = () => {
                 FHIR-based road safety medical and EMS data analytics
               </p>
             </div>
-            
+
             <div className="flex flex-wrap gap-2 items-center">
               {/* Date Range Picker */}
               <Popover>
@@ -272,7 +286,7 @@ const Index = () => {
         {/* Key Metrics */}
         <section>
           <h2 className="text-2xl font-semibold mb-4 text-foreground">Key Metrics</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               title="Mortality Rate"
               value={metrics?.mortalityRate || 0}
@@ -309,7 +323,7 @@ const Index = () => {
               tooltip="Percentage of traffic accidents that resulted in death during the selected date range"
               isLoading={finalIsLoading}
             />
-            <MetricCard
+            {/* MetricCard
               title="Accidents per Vehicle"
               value={metrics?.accidentPerVehicle || 0}
               unit="per 10k"
@@ -317,7 +331,7 @@ const Index = () => {
               description="Reported accidents per 10,000 vehicles"
               tooltip="Number of reported traffic accidents per 10,000 registered vehicles during the selected date range"
               isLoading={finalIsLoading}
-            />
+            / */}
             <MetricCard
               title="Transport Accidents"
               value={transportAccidentCount || 0}

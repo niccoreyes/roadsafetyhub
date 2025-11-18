@@ -60,7 +60,6 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ data, isLoading }) => {
               )}
             </p>
           ))}
-          <p className="text-xs text-blue-500 mt-2">Note: Data is simulated for demonstration purposes</p>
         </div>
       );
     }
