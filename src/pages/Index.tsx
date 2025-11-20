@@ -24,8 +24,8 @@ import { ConditionTable } from "@/components/dashboard/ConditionTable";
 const Index = () => {
   const { toast } = useToast();
   const [date, setDate] = useState<{ from: Date; to: Date } | undefined>({
-    from: new Date("2025-11-01"),
-    to: new Date("2025-11-30")
+    from: new Date("2025-11-17"),
+    to: new Date("2025-11-21")
   });
 
   // State for rate multiplier selections

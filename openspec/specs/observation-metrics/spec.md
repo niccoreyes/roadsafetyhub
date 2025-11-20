@@ -20,62 +20,6 @@ The system SHALL provide functionality to fetch FHIR Observation resources from 
 - **THEN** an empty array is returned (no errors thrown)
 - **AND** downstream components handle the empty state gracefully
 
-### Requirement: SNOMED CT Code Filtering 274215009
-The system SHALL identify and count both Observation and Condition resources containing the SNOMED CT code `274215009` from the code system `http://snomed.info/sct` OR the versioned code system `http://snomed.info/sct/900000000000207008/version/20241001` in the `resource.code.coding` array.
-
-#### Scenario: Filter resources by specific SNOMED CT code
-- **GIVEN** 500 observation resources and 200 condition resources are fetched from the FHIR server
-- **AND** resources include various code systems and SNOMED CT codes
-- **WHEN** the system processes resources with code `274215009`
-- **THEN** it checks each resource's `code.coding` array
-- **AND** matches resources where:
-  - `coding.code = "274215009"`
-  - AND (`coding.system = "http://snomed.info/sct"` OR `coding.system = "http://snomed.info/sct/900000000000207008/version/20241001"`)
-- **AND** returns the count of matching resources (observations + conditions)
-
-#### Scenario: Observation with versioned SNOMED CT system
-- **GIVEN** an observation resource with the following code structure:
-```json
-{
-  "resourceType": "Observation",
-  "code": {
-    "coding": [
-      {
-        "system": "http://snomed.info/sct/900000000000207008/version/20241001",
-        "code": "274215009",
-        "display": "Transport accident (event)"
-      }
-    ]
-  }
-}
-```
-- **WHEN** the filtering logic checks this observation
-- **THEN** it is counted in the transport accident metrics
-
-#### Scenario: Condition with canonical SNOMED CT system
-- **GIVEN** a condition resource with the following code structure:
-```json
-{
-  "resourceType": "Condition",
-  "code": {
-    "coding": [
-      {
-        "system": "http://snomed.info/sct",
-        "code": "274215009",
-        "display": "Transport accident (event)"
-      }
-    ]
-  }
-}
-```
-- **WHEN** the filtering logic checks this condition
-- **THEN** it is counted in the transport accident metrics
-
-#### Scenario: Resource without matching SNOMED CT code
-- **GIVEN** a resource with a different SNOMED CT code or different code system
-- **WHEN** the filtering logic checks this resource
-- **THEN** it is excluded from the count
-
 ### Requirement: Transport Accident Metrics Card
 The dashboard SHALL display a metric card showing the combined count of observations and conditions matching SNOMED CT code 274215009, positioned in the Key Metrics section alongside other critical health metrics.
 
@@ -123,4 +67,78 @@ The system SHALL process observation metrics calculations asynchronously alongsi
 - **THEN** metrics calculations run in parallel using Promise.all()
 - **AND** the dashboard state updates atomically when all metrics are ready
 - **AND** no partial updates create inconsistent UI states
+
+### Requirement: SNOMED CT Codes for Transport Accidents
+The system SHALL identify and count resources containing SNOMED CT codes 274215009 (Transport accident) OR 127348004 (Motor vehicle accident victim) from the code system `http://snomed.info/sct` OR the versioned code system `http://snomed.info/sct/900000000000207008/version/20241001` in the `resource.code.coding` array.
+
+#### Scenario: Filter resources by both SNOMED CT codes
+- **GIVEN** 500 observation resources and 200 condition resources are fetched from the FHIR server
+- **AND** resources include various code systems and SNOMED CT codes
+- **WHEN** the system processes resources with code 274215009 OR 127348004
+- **THEN** it checks each resource's `code.coding` array
+- **AND** matches resources where:
+  - `coding.code = "274215009"` OR `coding.code = "127348004"`
+  - AND (`coding.system = "http://snomed.info/sct"` OR `coding.system = "http://snomed.info/sct/900000000000207008/version/20241001"`)
+- **AND** returns the count of matching resources
+
+#### Scenario: Observation with motor vehicle accident victim code
+- **GIVEN** an observation resource with the following code structure:
+```json
+{
+  "resourceType": "Observation",
+  "code": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct/900000000000207008/version/20241001",
+        "code": "127348004",
+        "display": "Motor vehicle accident victim (person)"
+      }
+    ]
+  }
+}
+```
+- **WHEN** the filtering logic checks this observation
+- **THEN** it is counted in the transport accident metrics
+
+### Requirement: Mortality Calculation by Patient
+The system SHALL calculate mortality rate based on unique patients rather than encounters to prevent overcounting of patients with multiple traffic-related encounters.
+
+#### Scenario: Calculate deaths per unique patient
+- **GIVEN** 1000 encounters for 800 unique patients
+- **AND** 50 patients died (some with multiple encounters each)
+- **WHEN** mortality rate is calculated
+- **THEN** the death count is 50 (unique patients)
+- **AND** calculation uses 50 as the numerator, not the total number of death encounters
+
+#### Scenario: Patient-level traffic accident identification
+- **GIVEN** a patient has 3 encounters
+- **AND** 2 encounters have code 274215009 and 1 encounter has code 127348004
+- **AND** the patient dies
+- **WHEN** mortality calculation processes this patient
+- **THEN** the patient is counted once in the traffic accident population
+- **AND** the patient is counted once in the death count if expired
+
+### Requirement: Transport Accident Counting by Encounter
+The system SHALL count transport accidents for display purposes (e.g., metric cards, UI displays) on a per-encounter basis, where each encounter with a matching SNOMED CT code counts as one transport accident.
+
+#### Scenario: Count encounters with transport accident codes
+- **GIVEN** 250 encounters with SNOMED code 274215009 (Transport accident)
+- **AND** 150 encounters with SNOMED code 127348004 (Motor vehicle accident victim)
+- **WHEN** the transport accident count is calculated for display
+- **THEN** the total count is 400 encounters
+- **AND** the count includes both SNOMED codes
+
+#### Scenario: Transport accidents card with both codes
+- **GIVEN** the dashboard has loaded observations and conditions with both SNOMED codes
+- **AND** 35 observations match code 274215009
+- **AND** 15 observations match code 127348004
+- **AND** 20 conditions match code 274215009
+- **AND** 10 conditions match code 127348004
+- **WHEN** the user views the Key Metrics section
+- **THEN** the Transport Accidents card displays:
+  - Title: "Transport Accidents"
+  - Value: 80 (35 + 15 + 20 + 10)
+  - Unit: "#"
+  - Icon: Activity (from lucide-react)
+  - Description: "Observations and conditions with SNOMED CT codes 274215009, 127348004"
 
