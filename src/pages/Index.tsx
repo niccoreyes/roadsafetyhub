@@ -249,67 +249,62 @@ const Index = () => {
     <div className="min-h-screen bg-background">
 
       {/* Header */}
-      <header className="border-b bg-card relative h-28">
-        <img src="/SIL-PH-Icon.png" alt="Department of Health SIL-PH Logo" className="absolute top-0 left-0 w-auto h-full object-contain" />
-        <div className="container mx-auto px-4 h-full">
-          <div className="flex justify-end items-center h-full">
-            <div className="flex flex-wrap gap-2 items-center">
-              {/* Date Range Picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date"
-                    variant={"outline"}
-                    className={cn(
-                      "w-[300px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date?.from ? (
-                      date.to ? (
-                        <>
-                          {format(date.from, "LLL dd, y")} -{" "}
-                          {format(date.to, "LLL dd, y")}
-                        </>
-                      ) : (
-                        format(date.from, "LLL dd, y")
-                      )
-                    ) : (
-                      <span>Pick a date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={date?.from}
-                    selected={date}
-                    onSelect={(selectedRange) => {
-                      // Validate that the date range is proper
-                      if (selectedRange?.from && selectedRange?.to) {
-                        if (selectedRange.from > selectedRange.to) {
-                          toast({
-                            title: "Invalid Date Range",
-                            description: "Start date cannot be after end date.",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                      }
-                      setDate(selectedRange);
-                    }}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <Button onClick={handleRefresh} variant="default">
-                Refresh Data
+      <header className="border-b bg-card flex justify-end items-center h-28 px-4 bg-no-repeat bg-left-top bg-contain" style={{ backgroundImage: "url('/SIL-PH-Icon.png')" }}>
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Date Range Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="date"
+                variant={"outline"}
+                className={cn(
+                  "w-[300px] justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date?.from ? (
+                  date.to ? (
+                    <>
+                      {format(date.from, "LLL dd, y")} -{" "}
+                      {format(date.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(date.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
               </Button>
-            </div>
-          </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={date?.from}
+                selected={date}
+                onSelect={(selectedRange) => {
+                  // Validate that the date range is proper
+                  if (selectedRange?.from && selectedRange?.to) {
+                    if (selectedRange.from > selectedRange.to) {
+                      toast({
+                        title: "Invalid Date Range",
+                        description: "Start date cannot be after end date.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+                  setDate(selectedRange);
+                }}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button onClick={handleRefresh} variant="default">
+            Refresh Data
+          </Button>
         </div>
       </header>
 
