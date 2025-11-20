@@ -162,7 +162,7 @@ const Index = () => {
         // Fetch required data from server APIs
         const populationAtRisk = await fetchPopulationData(); // Fetch from population registry API
         const motorVehiclesCount = await fetchVehicleCountData(); // Fetch from vehicle registry API
-        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients, populationAtRisk, motorVehiclesCount);
+        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients, populationAtRisk, motorVehiclesCount, date);
 
         // Pass the date range and encounters to the grouping functions
         const calculatedInjuryGroups = groupByInjuryType(conditions);

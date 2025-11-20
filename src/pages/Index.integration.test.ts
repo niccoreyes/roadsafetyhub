@@ -62,7 +62,7 @@ describe('Dashboard Integration', () => {
     ]);
 
     // Calculate metrics based on mock data
-    const metrics = await calculateMetrics(mockEncounters, mockConditions, mockPatients);
+    const metrics = await calculateMetrics(mockEncounters, mockConditions, mockPatients, 1000000, 50000, undefined);
 
     // Validate that the metrics object has expected properties
     expect(metrics).toHaveProperty('mortalityRate');

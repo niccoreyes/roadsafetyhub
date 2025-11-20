@@ -84,14 +84,29 @@ export async function getDispositionCategory(encounter: any): Promise<string> {
 
 /**
  * Calculates all dashboard metrics using known SNOMED CT codes for traffic accidents
+ * @param encounters - Array of FHIR encounter resources
+ * @param conditions - Array of FHIR condition resources
+ * @param patients - Map of patient resources indexed by ID
+ * @param populationAtRisk - Population at risk for calculating rates (default: 1,000,000)
+ * @param motorVehiclesCount - Number of motor vehicles for accident per vehicle calculation (default: 50,000)
+ * @param dateRange - Optional date range to validate metrics are calculated with filtered data
  */
 export async function calculateMetrics(
   encounters: any[],
   conditions: any[],
   patients: Map<string, any>,
   populationAtRisk: number = 1000000, // Should be fetched from population registry API (currently a default for backward compatibility)
-  motorVehiclesCount: number = 50000 // Should be fetched from vehicle registry API (currently a default for backward compatibility)
+  motorVehiclesCount: number = 50000, // Should be fetched from vehicle registry API (currently a default for backward compatibility)
+  dateRange?: { from: Date; to: Date }
 ): Promise<DashboardMetrics> {
+  // Add console logging to confirm metrics are calculated with date-filtered data
+  if (dateRange) {
+    console.log(`Calculating metrics for date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
+    console.log(`Total encounters in range: ${encounters.length}, Total conditions in range: ${conditions.length}`);
+  } else {
+    console.log("Calculating metrics without date range filter - using all available data");
+  }
+
   // Filter for traffic-related encounters and conditions using specific SNOMED CT codes
   const trafficEncounters = [];
   const trafficPatients = new Set<string>(); // Track patients with traffic-related conditions
@@ -146,6 +161,11 @@ export async function calculateMetrics(
 
   const baseMortalityRate = (trafficDeaths / populationAtRisk) * 100000; // Base rate per 100k
 
+  // Console logging for key metric calculations to show date range context
+  if (dateRange) {
+    console.log(`Traffic deaths in range: ${trafficDeaths}`);
+  }
+
 
   // C. Injury Rate by Traffic Accident
   // Calculate which patients had traffic-related encounters that did NOT result in death
@@ -162,9 +182,19 @@ export async function calculateMetrics(
 
   const baseInjuryRate = (nonFatalInjuries / populationAtRisk) * 100000; // Base rate per 100k
 
+  // Console logging for injury metric to show date range context
+  if (dateRange) {
+    console.log(`Non-fatal injuries in range: ${nonFatalInjuries}`);
+  }
+
   // D. Case Fatality Rate (deaths per traffic accident encounters)
   const totalAccidents = trafficEncounters.length || 1; // Prevent division by zero
   const caseFatalityRate = (trafficDeaths / totalAccidents) * 100;
+
+  // Console logging for case fatality rate to show date range context
+  if (dateRange) {
+    console.log(`Total accidents in range: ${totalAccidents}`);
+  }
 
   // E. Accident per Vehicle
   const accidentPerVehicle = (totalAccidents / motorVehiclesCount) * 10000;

@@ -68,7 +68,7 @@ describe('Metrics Calculator', () => {
         ['patient-1', { id: 'patient-1', gender: 'male', birthDate: '1990-01-01' }]
       ]);
 
-      const metrics = await calculateMetrics(encounters, conditions, patients);
+      const metrics = await calculateMetrics(encounters, conditions, patients, 1000000, 50000, undefined);
 
       // Check that metrics object has the expected properties
       expect(metrics).toHaveProperty('mortalityRate');
@@ -129,8 +129,8 @@ describe('Metrics Calculator', () => {
       const basePopulation = 100000;  // 100k
       const smallerPopulation = 10000;  // 10k - this should make rates 10x higher
 
-      const metricsBase = await calculateMetrics(encounters, conditions, patients, basePopulation);
-      const metricsSmaller = await calculateMetrics(encounters, conditions, patients, smallerPopulation);
+      const metricsBase = await calculateMetrics(encounters, conditions, patients, basePopulation, 50000, undefined);
+      const metricsSmaller = await calculateMetrics(encounters, conditions, patients, smallerPopulation, 50000, undefined);
 
       // Mortality rate should be (deaths / population) * 100000
       // With 1 death and 100k population, rate should be (1/100000)*100000 = 1.0 per 100k
@@ -207,7 +207,7 @@ describe('Metrics Calculator', () => {
       ]);
 
       const population = 100000;
-      const metrics = await calculateMetrics(encounters, conditions, patients, population);
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined);
 
       // The patient with ID 'patient-1' has 2 traffic-related encounters that both resulted in death
       // But they should only be counted once in the mortality rate calculation
@@ -263,7 +263,7 @@ describe('Metrics Calculator', () => {
       ]);
 
       const population = 100000;
-      const metrics = await calculateMetrics(encounters, conditions, patients, population);
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined);
 
       // Only patient-1 had a traffic-related accident that was not fatal (injury case)
       // So: 1 non-fatal injury out of the population
