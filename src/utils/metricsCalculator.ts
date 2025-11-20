@@ -92,8 +92,9 @@ export async function calculateMetrics(
   populationAtRisk: number = 1000000, // Should be fetched from population registry API (currently a default for backward compatibility)
   motorVehiclesCount: number = 50000 // Should be fetched from vehicle registry API (currently a default for backward compatibility)
 ): Promise<DashboardMetrics> {
-  // Filter for traffic-related encounters and conditions
+  // Filter for traffic-related encounters and conditions using specific SNOMED CT codes
   const trafficEncounters = [];
+  const trafficPatients = new Set<string>(); // Track patients with traffic-related conditions
 
   for (const enc of encounters) {
     const patientId = enc.subject?.reference?.replace("Patient/", "");
@@ -104,6 +105,7 @@ export async function calculateMetrics(
     for (const condition of patientConditions) {
       if (isTrafficRelatedCondition(condition)) {
         trafficEncounters.push(enc);
+        trafficPatients.add(patientId); // Add patient to track unique patients
         break; // Found a traffic-related condition for this encounter, no need to check others
       }
     }
@@ -116,31 +118,51 @@ export async function calculateMetrics(
     }
   }
 
-  // A. Mortality Rate due to Traffic Accident
-  const trafficExpiredPromises = trafficEncounters.map(enc => isExpired(enc));
-  const trafficExpiredResults = await Promise.all(trafficExpiredPromises);
-  const trafficDeaths = trafficExpiredResults.filter(Boolean).length;
-  const baseMortalityRate = (trafficDeaths / populationAtRisk) * 100000; // Base rate per 100k
+  // A. Mortality Rate due to Traffic Accident - now calculated per unique patient
+  // First, we identify all patients who had traffic-related encounters that resulted in death
+  const patientDeathStatus = new Map<string, boolean>(); // Tracks if a patient died from a traffic accident
 
-
-  // C. Injury Rate by Traffic Accident
-  // Calculate which patients had expired encounters to identify non-fatal injuries
-  let nonFatalInjuries = 0;
-  for (const cond of trafficConditions) {
-    const patientId = cond.subject?.reference?.replace("Patient/", "");
+  for (const patientId of trafficPatients) {
     const patientEncounters = trafficEncounters.filter(enc =>
       enc.subject?.reference?.replace("Patient/", "") === patientId
     );
 
-    // Check if any of the patient's encounters resulted in death
-    const expiredResults = await Promise.all(patientEncounters.map(enc => isExpired(enc)));
-    if (!expiredResults.some(Boolean)) { // If none of the encounters were expired, it's a non-fatal injury
+    // Check if any of the patient's traffic-related encounters resulted in death
+    const expiredPromises = patientEncounters.map(enc => isExpired(enc));
+    const expiredResults = await Promise.all(expiredPromises);
+    const diedFromTrafficAccident = expiredResults.some(Boolean);
+
+    // Record the death status for this patient
+    patientDeathStatus.set(patientId, diedFromTrafficAccident);
+  }
+
+  // Count how many unique patients died from traffic accidents
+  let trafficDeaths = 0;
+  for (const died of patientDeathStatus.values()) {
+    if (died) {
+      trafficDeaths++;
+    }
+  }
+
+  const baseMortalityRate = (trafficDeaths / populationAtRisk) * 100000; // Base rate per 100k
+
+
+  // C. Injury Rate by Traffic Accident
+  // Calculate which patients had traffic-related encounters that did NOT result in death
+  // This requires checking if each condition belongs to a patient that survived
+  let nonFatalInjuries = 0;
+  for (const cond of trafficConditions) {
+    const patientId = cond.subject?.reference?.replace("Patient/", "");
+    const patientDied = patientDeathStatus.get(patientId) || false;
+
+    if (!patientDied) { // Count as non-fatal injury if the patient didn't die from the traffic accident
       nonFatalInjuries++;
     }
   }
+
   const baseInjuryRate = (nonFatalInjuries / populationAtRisk) * 100000; // Base rate per 100k
 
-  // D. Case Fatality Rate
+  // D. Case Fatality Rate (deaths per traffic accident encounters)
   const totalAccidents = trafficEncounters.length || 1; // Prevent division by zero
   const caseFatalityRate = (trafficDeaths / totalAccidents) * 100;
 
@@ -317,7 +339,8 @@ export function groupBySex(
 }
 
 /**
- * Counts observations that match the PH Road Safety IG SNOMED CT code 274215009 for Transport accident
+ * Counts observations that match the PH Road Safety IG SNOMED CT codes for Transport accident
+ * Includes both codes: 274215009 (Transport accident) and 127348004 (Motor vehicle accident victim)
  */
 export function countTransportAccidents(observations: any[]): number {
   if (!Array.isArray(observations)) {
@@ -330,7 +353,7 @@ export function countTransportAccidents(observations: any[]): number {
       return obs?.code?.coding?.some((coding: any) =>
         (coding?.system === "http://snomed.info/sct" ||
          coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001") &&
-        coding?.code === "274215009"
+        (coding?.code === "274215009" || coding?.code === "127348004")
       );
     } catch (error) {
       console.warn("Error while filtering observation", error);
@@ -340,7 +363,8 @@ export function countTransportAccidents(observations: any[]): number {
 }
 
 /**
- * Checks if a condition matches the PH Road Safety IG SNOMED CT code 274215009 for Transport accident
+ * Checks if a condition matches the PH Road Safety IG SNOMED CT codes for Transport accident
+ * Includes both codes: 274215009 (Transport accident) and 127348004 (Motor vehicle accident victim)
  */
 export function isTransportAccidentCondition(condition: { code?: { coding?: Array<{ system?: string; code?: string }> } }): boolean {
   if (!condition?.code?.coding) {
@@ -350,12 +374,13 @@ export function isTransportAccidentCondition(condition: { code?: { coding?: Arra
   return condition.code.coding.some((coding) =>
     (coding?.system === "http://snomed.info/sct" ||
      coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001") &&
-    coding?.code === "274215009"
+    (coding?.code === "274215009" || coding?.code === "127348004")
   );
 }
 
 /**
- * Counts conditions that match the PH Road Safety IG SNOMED CT code 274215009 for Transport accident
+ * Counts conditions that match the PH Road Safety IG SNOMED CT codes for Transport accident
+ * Includes both codes: 274215009 (Transport accident) and 127348004 (Motor vehicle accident victim)
  */
 export function countTransportAccidentConditions(conditions: Array<{ code?: { coding?: Array<{ system?: string; code?: string }> } }>): number {
   if (!Array.isArray(conditions)) {
@@ -388,4 +413,21 @@ export function extractSnomedCodes(observation: any): Array<{ system: string; co
       code: coding.code,
       display: coding.display
     }));
+}
+
+/**
+ * Extracts unique patient IDs from conditions that have the specified SNOMED CT codes
+ * Used to ensure patient deduplication when calculating mortality rates
+ */
+export function getUniquePatientsWithSnomedCodes(conditions: any[]): Set<string> {
+  const patientIds = new Set<string>();
+
+  for (const condition of conditions) {
+    if (condition.subject?.reference && isTrafficRelatedCondition(condition)) {
+      const patientId = condition.subject.reference.replace("Patient/", "");
+      patientIds.add(patientId);
+    }
+  }
+
+  return patientIds;
 }

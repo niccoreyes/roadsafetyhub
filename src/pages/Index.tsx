@@ -79,7 +79,7 @@ const Index = () => {
     },
   });
 
-  // Fetch observations with SNOMED CT code 274215009 for Transport accident (event)
+  // Fetch observations with SNOMED CT codes 274215009 (Transport accident) and 127348004 (Motor vehicle accident victim)
   const { data: transportAccidentData, isLoading: transportAccidentLoading } = useQuery({
     queryKey: ["transportAccidentObservations", date],
     queryFn: async () => {
@@ -91,13 +91,13 @@ const Index = () => {
           format(date.from, "yyyy-MM-dd"),
           format(date.to, "yyyy-MM-dd")
         );
-        // Filter for SNOMED CT code for Transport accident (event)
+        // Filter for both SNOMED CT codes for Transport accident (event) and Motor vehicle accident victim
         const transportAccidentObservations = observations.filter(obs => {
           try {
             return obs?.code?.coding?.some((coding: any) =>
               (coding?.system === "http://snomed.info/sct" ||
                coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001") &&
-              coding?.code === "274215009"  // SNOMED CT code for Transport accident (event)
+              (coding?.code === "274215009" || coding?.code === "127348004")  // Both codes for transport accidents
             );
           } catch (error) {
             console.warn("Error while filtering observation", error);
@@ -249,18 +249,10 @@ const Index = () => {
     <div className="min-h-screen bg-background">
 
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                Road Safety Analytics Dashboard
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                FHIR-based road safety medical and EMS data analytics
-              </p>
-            </div>
-
+      <header className="border-b bg-card relative h-28">
+        <img src="/SIL-PH-Icon.png" alt="Department of Health SIL-PH Logo" className="absolute top-0 left-0 w-auto h-full object-contain" />
+        <div className="container mx-auto px-4 h-full">
+          <div className="flex justify-end items-center h-full">
             <div className="flex flex-wrap gap-2 items-center">
               {/* Date Range Picker */}
               <Popover>
@@ -374,8 +366,8 @@ const Index = () => {
               value={transportAccidentCount || 0}
               unit="#"
               icon={Activity}
-              description="Observations and conditions with SNOMED CT code 274215009 (Transport accident)"
-              tooltip="Number of FHIR Observation and Condition resources with SNOMED CT code 274215009 (Transport accident) during the selected date range"
+              description="Observations and conditions with SNOMED CT codes 274215009 (Transport accident) or 127348004 (Motor vehicle accident victim)"
+              tooltip="Number of FHIR Observation and Condition resources with either SNOMED CT code 274215009 (Transport accident) or 127348004 (Motor vehicle accident victim) during the selected date range"
               isLoading={finalIsLoading || transportAccidentLoading}
             />
           </div>

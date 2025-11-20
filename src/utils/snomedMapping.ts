@@ -12,31 +12,31 @@ export const VALUE_SET_URLS = {
 };
 
 /**
- * Checks if a coding is related to traffic/transport accidents by looking for keywords in display text
+ * Checks if a coding matches the SNOMED CT codes for transport accidents
+ * Uses the two specific codes:
+ * - 274215009 (Transport accident)
+ * - 127348004 (Motor vehicle accident victim)
  */
 export function isTrafficAccident(coding?: any): boolean {
   if (!coding) return false;
 
-  // Check if the code or display text contains traffic/transport related keywords
-  const code = coding.code?.toLowerCase() || '';
-  const display = coding.display?.toLowerCase() || '';
-  const textToCheck = `${code} ${display}`;
+  // Check if code matches either of the specific SNOMED CT codes
+  const code = coding.code;
+  const system = coding.system;
 
-  // Look for traffic/transport related keywords
-  const trafficKeywords = [
-    'traffic', 'transport', 'accident', 'road', 'vehicle', 'collision', 'crash',
-    'motor', 'car', 'truck', 'bus', 'bike', 'pedestrian', 'cyclist', 'driver',
-    'passenger', 'highway', 'street', 'automobile', 'high-vehicle', 'mva', 'rt'
-  ];
+  // Verify it's a SNOMED CT code system
+  if (!system || !system.startsWith("http://snomed.info/sct")) {
+    return false;
+  }
 
-  return trafficKeywords.some(keyword => textToCheck.includes(keyword));
+  return code === "274215009" || code === "127348004";
 }
 
 /**
  * Checks if a condition is traffic-related using known SNOMED CT codes
  */
 export function isTrafficRelatedCondition(condition: any): boolean {
-  if (!condition.code?.coding) return false;
+  if (!condition?.code?.coding) return false;
 
   for (const coding of condition.code.coding) {
     if (isTrafficAccident(coding)) {

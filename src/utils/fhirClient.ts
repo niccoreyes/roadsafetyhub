@@ -138,7 +138,7 @@ export async function fetchValueSetExpansion(valueSetUrl: string): Promise<any[]
   const cached = valueSetCache.get(valueSetUrl);
   if (cached) {
     logger.info(`ValueSet ${valueSetUrl} retrieved from cache`);
-    return cached.expansion;
+    return cached;
   }
 
   const txServerUrl = "https://tx.fhirlab.net/fhir";
@@ -180,9 +180,11 @@ export async function isCodingInValueSet(coding: any, valueSetUrl: string): Prom
   if (!coding?.code) return false;
 
   const codes = await fetchValueSetExpansion(valueSetUrl);
+  if (!Array.isArray(codes)) return false;
 
   return codes.some((code: any) =>
-    code.code === coding.code
+    code.code === coding.code &&
+    (code.system === coding.system || coding.system?.startsWith("http://snomed.info/sct"))
   );
 }
 
