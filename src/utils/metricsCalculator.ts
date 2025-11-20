@@ -16,12 +16,7 @@ export interface DashboardMetrics {
  * Static placeholder for motor vehicle count
  * In a real system, this would come from a vehicle registry API
  */
-const MOTOR_VEHICLES_COUNT = 50000;
-
-/**
- * Static placeholder for population at risk
- */
-const POPULATION_AT_RISK = 1000000;
+// const MOTOR_VEHICLES_COUNT = 50000; // Removed - now passed as parameter
 
 /**
  * Checks if an encounter resulted in death using PH Road Safety IG ValueSet
@@ -93,7 +88,9 @@ export async function getDispositionCategory(encounter: any): Promise<string> {
 export async function calculateMetrics(
   encounters: any[],
   conditions: any[],
-  patients: Map<string, any>
+  patients: Map<string, any>,
+  populationAtRisk: number = 1000000, // Should be fetched from population registry API (currently a default for backward compatibility)
+  motorVehiclesCount: number = 50000 // Should be fetched from vehicle registry API (currently a default for backward compatibility)
 ): Promise<DashboardMetrics> {
   // Filter for traffic-related encounters and conditions
   const trafficEncounters = [];
@@ -123,7 +120,7 @@ export async function calculateMetrics(
   const trafficExpiredPromises = trafficEncounters.map(enc => isExpired(enc));
   const trafficExpiredResults = await Promise.all(trafficExpiredPromises);
   const trafficDeaths = trafficExpiredResults.filter(Boolean).length;
-  const mortalityRate = (trafficDeaths / POPULATION_AT_RISK) * 100000;
+  const baseMortalityRate = (trafficDeaths / populationAtRisk) * 100000; // Base rate per 100k
 
 
   // C. Injury Rate by Traffic Accident
@@ -141,21 +138,21 @@ export async function calculateMetrics(
       nonFatalInjuries++;
     }
   }
-  const injuryRate = (nonFatalInjuries / POPULATION_AT_RISK) * 100000;
+  const baseInjuryRate = (nonFatalInjuries / populationAtRisk) * 100000; // Base rate per 100k
 
   // D. Case Fatality Rate
   const totalAccidents = trafficEncounters.length || 1; // Prevent division by zero
   const caseFatalityRate = (trafficDeaths / totalAccidents) * 100;
 
   // E. Accident per Vehicle
-  const accidentPerVehicle = (totalAccidents / MOTOR_VEHICLES_COUNT) * 10000;
+  const accidentPerVehicle = (totalAccidents / motorVehiclesCount) * 10000;
 
   // Count specific transport accident observations and conditions
   const totalTrafficAccidents = trafficEncounters.length;
 
   return {
-    mortalityRate,
-    injuryRate,
+    mortalityRate: baseMortalityRate, // This will be adjusted in the UI based on multiplier
+    injuryRate: baseInjuryRate,       // This will be adjusted in the UI based on multiplier
     caseFatalityRate,
     accidentPerVehicle,
     totalEncounters: encounters.length,

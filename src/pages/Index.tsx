@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { fetchEncounters, fetchConditions, fetchObservations, resolvePatients } from "@/utils/fhirClient";
 import { calculateMetrics, groupByAgeGroup, groupBySex } from "@/utils/metricsCalculator";
 import { groupByInjuryType } from "@/utils/snomedMapping";
+import { fetchPopulationData, fetchVehicleCountData } from "@/utils/dataFetchers";
 
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { SexPieChart } from "@/components/dashboard/SexPieChart";
@@ -26,6 +27,10 @@ const Index = () => {
     from: new Date("2025-11-01"),
     to: new Date("2025-11-30")
   });
+
+  // State for rate multiplier selections
+  const [mortalityMultiplier, setMortalityMultiplier] = useState<string>("100000"); // Default to per 100k
+  const [injuryMultiplier, setInjuryMultiplier] = useState<string>("100000"); // Default to per 100k
 
   // Fetch all data
   const { data: encountersData, isLoading: encountersLoading, refetch: refetchEncounters } = useQuery({
@@ -154,7 +159,10 @@ const Index = () => {
       setIsMetricsLoading(true);
 
       const calculateAsyncMetrics = async () => {
-        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients);
+        // Fetch required data from server APIs
+        const populationAtRisk = await fetchPopulationData(); // Fetch from population registry API
+        const motorVehiclesCount = await fetchVehicleCountData(); // Fetch from vehicle registry API
+        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients, populationAtRisk, motorVehiclesCount);
 
         // Pass the date range and encounters to the grouping functions
         const calculatedInjuryGroups = groupByInjuryType(conditions);
@@ -205,6 +213,29 @@ const Index = () => {
 
   const finalIsLoading = isLoading || isMetricsLoading || transportAccidentLoading;
 
+  // Function to convert base rate (per 100k) to selected multiplier
+  const convertRate = (baseRate: number, multiplier: string): number => {
+    // baseRate is currently per 100,000, so we need to adjust to the selected multiplier
+    const baseMultiplier = 100000; // The base rate is per 100,000
+    const selectedMultiplier = parseInt(multiplier);
+    return (baseRate * selectedMultiplier) / baseMultiplier;
+  };
+
+  // Calculate displayed rates based on selected multipliers
+  const displayedMortalityRate = metrics ? convertRate(metrics.mortalityRate, mortalityMultiplier) : 0;
+  const displayedInjuryRate = metrics ? convertRate(metrics.injuryRate, injuryMultiplier) : 0;
+
+  // Get the label for the selected multiplier
+  const getMultiplierLabel = (multiplier: string): string => {
+    switch(multiplier) {
+      case "100": return "per 100";
+      case "1000": return "per 1k";
+      case "10000": return "per 10k";
+      case "1000000": return "per 1M";
+      default: return "per 100k"; // Default to per 100k
+    }
+  };
+
   const handleRefresh = () => {
     refetchEncounters();
     toast({
@@ -213,52 +244,9 @@ const Index = () => {
     });
   };
 
-  const [isBannerVisible, setIsBannerVisible] = useState(true);
-
-  // Check on component mount if banner was dismissed previously
-  useEffect(() => {
-    const bannerDismissed = localStorage.getItem('simulatedDataBannerDismissed');
-    if (bannerDismissed === 'true') {
-      setIsBannerVisible(false);
-    }
-  }, []);
-
-  const handleDismissBanner = () => {
-    setIsBannerVisible(false);
-    localStorage.setItem('simulatedDataBannerDismissed', 'true');
-  };
-
-  // COMMENT: Simulated data warning banner implementation
-  // The banner appears at the top of the dashboard to inform users that all data is simulated
-  // It can be dismissed and remembers the user's preference using localStorage
-  // This implements requirement from ui-metrics spec about centralized simulated data transparency
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Simulated Data Banner */}
-      {isBannerVisible && (
-        <div className="bg-yellow-50 border-b border-yellow-200 py-3">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-                <p className="text-sm text-yellow-800">
-                  Note: All displayed data is simulated for demonstration purposes
-                </p>
-              </div>
-              <button
-                onClick={handleDismissBanner}
-                className="text-yellow-600 hover:text-yellow-800 focus:outline-none"
-                aria-label="Dismiss banner"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <header className="border-b bg-card">
@@ -341,21 +329,27 @@ const Index = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               title="Mortality Rate"
-              value={metrics?.mortalityRate || 0}
-              unit="per 100k"
+              value={displayedMortalityRate}
+              unit={getMultiplierLabel(mortalityMultiplier)}
               icon={AlertCircle}
-              description="Traffic accident deaths per 100,000 population"
-              tooltip="Number of traffic accident deaths per 100,000 people in the population during the selected date range"
+              description={`Traffic accident deaths ${getMultiplierLabel(mortalityMultiplier)} population`}
+              tooltip="Number of traffic accident deaths per selected population unit during the selected date range"
               isLoading={finalIsLoading}
+              showMultiplierDropdown={true}
+              multiplierValue={mortalityMultiplier}
+              onMultiplierChange={setMortalityMultiplier}
             />
             <MetricCard
               title="Injury Rate"
-              value={metrics?.injuryRate || 0}
-              unit="per 100k"
+              value={displayedInjuryRate}
+              unit={getMultiplierLabel(injuryMultiplier)}
               icon={TrendingUp}
-              description="Non-fatal injuries per 100,000 population"
-              tooltip="Number of non-fatal traffic-related injuries per 100,000 people in the population during the selected date range"
+              description={`Non-fatal injuries ${getMultiplierLabel(injuryMultiplier)} population`}
+              tooltip="Number of non-fatal traffic-related injuries per selected population unit during the selected date range"
               isLoading={finalIsLoading}
+              showMultiplierDropdown={true}
+              multiplierValue={injuryMultiplier}
+              onMultiplierChange={setInjuryMultiplier}
             />
             <MetricCard
               title="Case Fatality Rate"
