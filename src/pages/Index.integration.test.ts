@@ -66,7 +66,6 @@ describe('Dashboard Integration', () => {
 
     // Validate that the metrics object has expected properties
     expect(metrics).toHaveProperty('mortalityRate');
-    expect(metrics).toHaveProperty('deathsPer10kVehicles');
     expect(metrics).toHaveProperty('injuryRate');
     expect(metrics).toHaveProperty('caseFatalityRate');
     expect(metrics).toHaveProperty('accidentPerVehicle');

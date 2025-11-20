@@ -21,19 +21,19 @@ The system SHALL provide functionality to fetch FHIR Observation resources from 
 - **AND** downstream components handle the empty state gracefully
 
 ### Requirement: SNOMED CT Code Filtering 274215009
-The system SHALL identify and count Observation resources containing the SNOMED CT code `274215009` from the code system `http://snomed.info/sct/900000000000207008/version/20241001` in the `Observation.code.coding` array.
+The system SHALL identify and count both Observation and Condition resources containing the SNOMED CT code `274215009` from the code system `http://snomed.info/sct` OR the versioned code system `http://snomed.info/sct/900000000000207008/version/20241001` in the `resource.code.coding` array.
 
-#### Scenario: Filter observations by specific SNOMED CT code
-- **GIVEN** 500 observation resources are fetched from the FHIR server
-- **AND** observations include various code systems and SNOMED CT codes
-- **WHEN** the countObservationsByCode function processes the observations with code `274215009`
-- **THEN** it checks each observation's `code.coding` array
-- **AND** matches observations where:
-  - `coding.system = "http://snomed.info/sct/900000000000207008/version/20241001"`
+#### Scenario: Filter resources by specific SNOMED CT code
+- **GIVEN** 500 observation resources and 200 condition resources are fetched from the FHIR server
+- **AND** resources include various code systems and SNOMED CT codes
+- **WHEN** the system processes resources with code `274215009`
+- **THEN** it checks each resource's `code.coding` array
+- **AND** matches resources where:
   - `coding.code = "274215009"`
-- **AND** returns the count of matching observations
+  - AND (`coding.system = "http://snomed.info/sct"` OR `coding.system = "http://snomed.info/sct/900000000000207008/version/20241001"`)
+- **AND** returns the count of matching resources (observations + conditions)
 
-#### Scenario: Observation with matching SNOMED CT code
+#### Scenario: Observation with versioned SNOMED CT system
 - **GIVEN** an observation resource with the following code structure:
 ```json
 {
@@ -50,36 +50,56 @@ The system SHALL identify and count Observation resources containing the SNOMED 
 }
 ```
 - **WHEN** the filtering logic checks this observation
-- **THEN** it is counted in the observation metrics
+- **THEN** it is counted in the transport accident metrics
 
-#### Scenario: Observation without matching SNOMED CT code
-- **GIVEN** an observation with a different SNOMED CT code or different code system
-- **WHEN** the filtering logic checks this observation
+#### Scenario: Condition with canonical SNOMED CT system
+- **GIVEN** a condition resource with the following code structure:
+```json
+{
+  "resourceType": "Condition",
+  "code": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "274215009",
+        "display": "Transport accident (event)"
+      }
+    ]
+  }
+}
+```
+- **WHEN** the filtering logic checks this condition
+- **THEN** it is counted in the transport accident metrics
+
+#### Scenario: Resource without matching SNOMED CT code
+- **GIVEN** a resource with a different SNOMED CT code or different code system
+- **WHEN** the filtering logic checks this resource
 - **THEN** it is excluded from the count
 
 ### Requirement: Transport Accident Metrics Card
-The dashboard SHALL display a metric card showing the count of observations matching SNOMED CT code 274215009, positioned in the Key Metrics section alongside other critical health metrics.
+The dashboard SHALL display a metric card showing the combined count of observations and conditions matching SNOMED CT code 274215009, positioned in the Key Metrics section alongside other critical health metrics.
 
 #### Scenario: Display transport accident count
-- **GIVEN** the dashboard has loaded observations for the selected date range
-- **AND** 42 observations match SNOMED CT code 274215009
+- **GIVEN** the dashboard has loaded observations and conditions for the selected date range
+- **AND** 35 observations match SNOMED CT code 274215009
+- **AND** 15 conditions match SNOMED CT code 274215009
 - **WHEN** the user views the Key Metrics section
 - **THEN** a metric card displays:
   - Title: "Transport Accidents"
-  - Value: 42
+  - Value: 50 (35 observations + 15 conditions)
   - Unit: "#"
   - Icon: Activity (from lucide-react)
-  - Description: "Observations with SNOMED CT code 274215009 (Transport accident)"
-- **AND** the loading state is shared with other metrics during data refresh
+  - Description: "Observations and conditions with SNOMED CT code 274215009 (Transport accident)"
+- **AND** date range filtering applies to both observations and conditions
 
 #### Scenario: Zero transport accidents
-- **GIVEN** no observations match SNOMED CT code 274215009 for the selected date range
+- **GIVEN** no observations or conditions match SNOMED CT code 274215009 for the selected date range
 - **WHEN** the metric card renders
 - **THEN** it displays value "0" with neutral styling (not error state)
-- **AND** the description updates to indicate no transport accidents recorded
+- **AND** the description indicates no transport accidents recorded
 
-#### Scenario: Observation data loading state
-- **GIVEN** observations are being fetched from the server
+#### Scenario: Transport accident data loading state
+- **GIVEN** observations and conditions are being fetched from the server
 - **WHEN** the metrics are calculating
 - **THEN** the Transport Accident card displays a skeleton loading state
 - **AND** matches the loading behavior of existing metric cards

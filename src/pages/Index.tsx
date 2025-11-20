@@ -90,7 +90,8 @@ const Index = () => {
         const transportAccidentObservations = observations.filter(obs => {
           try {
             return obs?.code?.coding?.some((coding: any) =>
-              coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001" &&
+              (coding?.system === "http://snomed.info/sct" ||
+               coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001") &&
               coding?.code === "274215009"  // SNOMED CT code for Transport accident (event)
             );
           } catch (error) {
@@ -154,19 +155,39 @@ const Index = () => {
 
       const calculateAsyncMetrics = async () => {
         const calculatedMetrics = await calculateMetrics(encounters, conditions, patients);
-        const calculatedInjuryGroups = groupByInjuryType(conditions);
-        const calculatedAgeGroups = groupByAgeGroup(patients);
-        const calculatedSexGroups = groupBySex(patients);
 
-        // Calculate expired count using the async isExpired function
-        const { isExpired } = await import("@/utils/metricsCalculator");
-        const expiredPromises = encounters.map(enc => isExpired(enc));
+        // Pass the date range and encounters to the grouping functions
+        const calculatedInjuryGroups = groupByInjuryType(conditions);
+        const calculatedAgeGroups = groupByAgeGroup(patients, encounters, date);
+        const calculatedSexGroups = groupBySex(patients, encounters, date);
+
+        // Calculate expired count using the async isExpired function with date filtering
+        const { isExpired, countTransportAccidentConditions } = await import("@/utils/metricsCalculator");
+
+        // Filter encounters by date range before calculating mortality
+        const filteredEncounters = date ? encounters.filter(enc => {
+          const encounterDate = new Date(enc._lastUpdated || enc.period?.start || enc.period?.end || enc.meta?.lastUpdated);
+          const dateFrom = new Date(date.from);
+          const dateTo = new Date(date.to);
+          return encounterDate >= dateFrom && encounterDate <= dateTo;
+        }) : encounters;
+
+        // Add console logging to validate data ranges are applied correctly
+        console.log(`Date range: ${date?.from?.toISOString()} to ${date?.to?.toISOString()}`);
+        console.log(`Total encounters: ${encounters.length}, Filtered encounters: ${filteredEncounters.length}`);
+
+        const expiredPromises = filteredEncounters.map(enc => isExpired(enc));
         const expiredResults = await Promise.all(expiredPromises);
         const calculatedExpiredCount = expiredResults.filter(Boolean).length;
-        const calculatedSurvivedCount = encounters.length - calculatedExpiredCount;
+        const calculatedSurvivedCount = filteredEncounters.length - calculatedExpiredCount;
 
-        // Calculate transport accident count
-        const calculatedTransportAccidentCount = transportAccidentObservations.length;
+        // Log the mortality counts for verification
+        console.log(`Expired count: ${calculatedExpiredCount}, Survived count: ${calculatedSurvivedCount}`);
+
+        // Calculate transport accident count from both observations and conditions
+        const observationTransportAccidents = transportAccidentObservations.length;
+        const conditionTransportAccidents = countTransportAccidentConditions(conditions);
+        const calculatedTransportAccidentCount = conditionTransportAccidents;
 
         setMetrics(calculatedMetrics);
         setInjuryGroups(calculatedInjuryGroups);
@@ -180,7 +201,7 @@ const Index = () => {
 
       calculateAsyncMetrics();
     }
-  }, [encounters, conditions, transportAccidentObservations, patients]);
+  }, [encounters, conditions, transportAccidentObservations, patients, date]);
 
   const finalIsLoading = isLoading || isMetricsLoading || transportAccidentLoading;
 
@@ -192,21 +213,52 @@ const Index = () => {
     });
   };
 
+  const [isBannerVisible, setIsBannerVisible] = useState(true);
+
+  // Check on component mount if banner was dismissed previously
+  useEffect(() => {
+    const bannerDismissed = localStorage.getItem('simulatedDataBannerDismissed');
+    if (bannerDismissed === 'true') {
+      setIsBannerVisible(false);
+    }
+  }, []);
+
+  const handleDismissBanner = () => {
+    setIsBannerVisible(false);
+    localStorage.setItem('simulatedDataBannerDismissed', 'true');
+  };
+
+  // COMMENT: Simulated data warning banner implementation
+  // The banner appears at the top of the dashboard to inform users that all data is simulated
+  // It can be dismissed and remembers the user's preference using localStorage
+  // This implements requirement from ui-metrics spec about centralized simulated data transparency
+
   return (
     <div className="min-h-screen bg-background">
       {/* Simulated Data Banner */}
-      <div className="bg-yellow-50 border-b border-yellow-200 py-3">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-              <p className="text-sm text-yellow-800">
-                Note: All displayed data is simulated for demonstration purposes
-              </p>
+      {isBannerVisible && (
+        <div className="bg-yellow-50 border-b border-yellow-200 py-3">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                <p className="text-sm text-yellow-800">
+                  Note: All displayed data is simulated for demonstration purposes
+                </p>
+              </div>
+              <button
+                onClick={handleDismissBanner}
+                className="text-yellow-600 hover:text-yellow-800 focus:outline-none"
+                aria-label="Dismiss banner"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Header */}
       <header className="border-b bg-card">
@@ -297,15 +349,6 @@ const Index = () => {
               isLoading={finalIsLoading}
             />
             <MetricCard
-              title="Deaths per 10k Vehicles"
-              value={metrics?.deathsPer10kVehicles || 0}
-              unit="per 10k"
-              icon={Car}
-              description="Road traffic deaths per 10,000 motor vehicles"
-              tooltip="Number of road traffic deaths per 10,000 registered motor vehicles during the selected date range"
-              isLoading={finalIsLoading}
-            />
-            <MetricCard
               title="Injury Rate"
               value={metrics?.injuryRate || 0}
               unit="per 100k"
@@ -337,8 +380,8 @@ const Index = () => {
               value={transportAccidentCount || 0}
               unit="#"
               icon={Activity}
-              description="Observations with SNOMED CT code 274215009 (Transport accident)"
-              tooltip="Number of FHIR Observation resources with SNOMED CT code 274215009 (Transport accident) during the selected date range"
+              description="Observations and conditions with SNOMED CT code 274215009 (Transport accident)"
+              tooltip="Number of FHIR Observation and Condition resources with SNOMED CT code 274215009 (Transport accident) during the selected date range"
               isLoading={finalIsLoading || transportAccidentLoading}
             />
           </div>
@@ -358,7 +401,6 @@ const Index = () => {
                 isLoading={finalIsLoading}
               />
             </div>
-
           </div>
         </section>
 

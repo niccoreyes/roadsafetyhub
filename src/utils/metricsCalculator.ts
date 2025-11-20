@@ -4,7 +4,6 @@ import { isTrafficRelatedCondition } from "./snomedMapping";
 
 export interface DashboardMetrics {
   mortalityRate: number;
-  deathsPer10kVehicles: number;
   injuryRate: number;
   caseFatalityRate: number;
   accidentPerVehicle: number;
@@ -126,8 +125,6 @@ export async function calculateMetrics(
   const trafficDeaths = trafficExpiredResults.filter(Boolean).length;
   const mortalityRate = (trafficDeaths / POPULATION_AT_RISK) * 100000;
 
-  // B. Deaths per 10,000 Motor Vehicles
-  const deathsPer10kVehicles = (trafficDeaths / MOTOR_VEHICLES_COUNT) * 10000;
 
   // C. Injury Rate by Traffic Accident
   // Calculate which patients had expired encounters to identify non-fatal injuries
@@ -153,9 +150,11 @@ export async function calculateMetrics(
   // E. Accident per Vehicle
   const accidentPerVehicle = (totalAccidents / MOTOR_VEHICLES_COUNT) * 10000;
 
+  // Count specific transport accident observations and conditions
+  const totalTrafficAccidents = trafficEncounters.length;
+
   return {
     mortalityRate,
-    deathsPer10kVehicles,
     injuryRate,
     caseFatalityRate,
     accidentPerVehicle,
@@ -200,7 +199,11 @@ export function getAgeGroup(age: number): string {
 /**
  * Groups patients by age group
  */
-export function groupByAgeGroup(patients: Map<string, any>): Record<string, number> {
+export function groupByAgeGroup(
+  patients: Map<string, any>,
+  encounters: any[] = [],
+  dateRange?: { from: Date; to: Date }
+): Record<string, number> {
   const groups: Record<string, number> = {
     "0-4": 0,
     "5-14": 0,
@@ -213,13 +216,44 @@ export function groupByAgeGroup(patients: Map<string, any>): Record<string, numb
     "75+": 0,
   };
 
-  patients.forEach(patient => {
-    if (patient.birthDate) {
-      const age = calculateAge(patient.birthDate);
-      const group = getAgeGroup(age);
-      groups[group]++;
-    }
-  });
+  // If date range is provided, only count patients associated with encounters in that range
+  if (dateRange && encounters.length > 0) {
+    // Filter encounters by date range using _lastUpdated field
+    const filteredEncounterIds = encounters.filter(enc => {
+      const encounterDate = new Date(enc._lastUpdated || enc.period?.start || enc.period?.end || enc.meta?.lastUpdated);
+      const from = new Date(dateRange.from);
+      const to = new Date(dateRange.to);
+      return encounterDate >= from && encounterDate <= to;
+    }).map(enc => enc.id);
+
+    // Only count patients who have encounters within the date range
+    patients.forEach(patient => {
+      const patientId = patient.id;
+      const patientEncounters = encounters.filter(enc =>
+        enc.subject?.reference?.replace("Patient/", "") === patientId
+      );
+
+      // If any encounter for this patient is within the date range, include the patient
+      const hasEncounterInRange = patientEncounters.some(enc =>
+        filteredEncounterIds.includes(enc.id)
+      );
+
+      if (hasEncounterInRange && patient.birthDate) {
+        const age = calculateAge(patient.birthDate);
+        const group = getAgeGroup(age);
+        groups[group]++;
+      }
+    });
+  } else {
+    // If no date range, use all patients as before
+    patients.forEach(patient => {
+      if (patient.birthDate) {
+        const age = calculateAge(patient.birthDate);
+        const group = getAgeGroup(age);
+        groups[group]++;
+      }
+    });
+  }
 
   return groups;
 }
@@ -227,7 +261,11 @@ export function groupByAgeGroup(patients: Map<string, any>): Record<string, numb
 /**
  * Groups patients by sex using PH Road Safety IG categories
  */
-export function groupBySex(patients: Map<string, any>): Record<string, number> {
+export function groupBySex(
+  patients: Map<string, any>,
+  encounters: any[] = [],
+  dateRange?: { from: Date; to: Date }
+): Record<string, number> {
   const groups: Record<string, number> = {
     male: 0,
     female: 0,
@@ -235,14 +273,48 @@ export function groupBySex(patients: Map<string, any>): Record<string, number> {
     unknown: 0,
   };
 
-  patients.forEach(patient => {
-    const gender = patient.gender?.toLowerCase() || "unknown";
-    if (groups[gender] !== undefined) {
-      groups[gender]++;
-    } else {
-      groups.unknown++;
-    }
-  });
+  // If date range is provided, only count patients associated with encounters in that range
+  if (dateRange && encounters.length > 0) {
+    // Filter encounters by date range using _lastUpdated field
+    const filteredEncounterIds = encounters.filter(enc => {
+      const encounterDate = new Date(enc._lastUpdated || enc.period?.start || enc.period?.end || enc.meta?.lastUpdated);
+      const from = new Date(dateRange.from);
+      const to = new Date(dateRange.to);
+      return encounterDate >= from && encounterDate <= to;
+    }).map(enc => enc.id);
+
+    // Only count patients who have encounters within the date range
+    patients.forEach(patient => {
+      const patientId = patient.id;
+      const patientEncounters = encounters.filter(enc =>
+        enc.subject?.reference?.replace("Patient/", "") === patientId
+      );
+
+      // If any encounter for this patient is within the date range, include the patient
+      const hasEncounterInRange = patientEncounters.some(enc =>
+        filteredEncounterIds.includes(enc.id)
+      );
+
+      if (hasEncounterInRange) {
+        const gender = patient.gender?.toLowerCase() || "unknown";
+        if (groups[gender] !== undefined) {
+          groups[gender]++;
+        } else {
+          groups.unknown++;
+        }
+      }
+    });
+  } else {
+    // If no date range, use all patients as before
+    patients.forEach(patient => {
+      const gender = patient.gender?.toLowerCase() || "unknown";
+      if (groups[gender] !== undefined) {
+        groups[gender]++;
+      } else {
+        groups.unknown++;
+      }
+    });
+  }
 
   return groups;
 }
@@ -259,11 +331,46 @@ export function countTransportAccidents(observations: any[]): number {
   return observations.filter(obs => {
     try {
       return obs?.code?.coding?.some((coding: any) =>
-        coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001" &&
+        (coding?.system === "http://snomed.info/sct" ||
+         coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001") &&
         coding?.code === "274215009"
       );
     } catch (error) {
       console.warn("Error while filtering observation", error);
+      return false;
+    }
+  }).length;
+}
+
+/**
+ * Checks if a condition matches the PH Road Safety IG SNOMED CT code 274215009 for Transport accident
+ */
+export function isTransportAccidentCondition(condition: { code?: { coding?: Array<{ system?: string; code?: string }> } }): boolean {
+  if (!condition?.code?.coding) {
+    return false;
+  }
+
+  return condition.code.coding.some((coding) =>
+    (coding?.system === "http://snomed.info/sct" ||
+     coding?.system === "http://snomed.info/sct/900000000000207008/version/20241001") &&
+    coding?.code === "274215009"
+  );
+}
+
+/**
+ * Counts conditions that match the PH Road Safety IG SNOMED CT code 274215009 for Transport accident
+ */
+export function countTransportAccidentConditions(conditions: Array<{ code?: { coding?: Array<{ system?: string; code?: string }> } }>): number {
+  if (!Array.isArray(conditions)) {
+    console.warn("conditions is not an array, returning 0");
+    return 0;
+  }
+
+  return conditions.filter(condition => {
+    try {
+      return isTransportAccidentCondition(condition);
+    } catch (error) {
+      console.warn("Error while filtering condition", error);
       return false;
     }
   }).length;

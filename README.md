@@ -2,6 +2,8 @@
 
 This project implements a comprehensive FHIR PH Road Safety Implementation Guide (IG) support for the road safety analytics dashboard. The dashboard uses FHIR standards to provide analytics for road safety data with special focus on traffic accident analytics.
 
+**Note: All displayed data in this dashboard is simulated for demonstration purposes.**
+
 ## Features
 
 - FHIR-compliant road safety analytics
@@ -155,3 +157,9 @@ The system determines if an encounter resulted in death by checking the discharg
 ```
 
 This approach ensures compliance with PH Road Safety IG standards while providing a robust fallback mechanism.
+
+### Is the data in this dashboard real or simulated?
+
+All data in this dashboard is currently simulated for demonstration purposes. The dashboard fetches real FHIR resources from the configured FHIR server, but the data content is simulated to protect sensitive information and provide a consistent demonstration environment. The dashboard includes a prominent banner indicating that the data is simulated.
+
+When connected to a real FHIR server with real data, the dashboard will display actual road safety metrics from that server.
