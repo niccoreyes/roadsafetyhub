@@ -306,9 +306,10 @@ export async function calculateMetrics(
     }
   }
 
-  // A. Mortality Rate - now calculated per unique patient, counting deaths with "DIED" observation value
-  // Since the observations parameter should contain only "DIED" observations when using the dedicated endpoint,
-  // we can directly process them as death observations
+  // A. Mortality Rate - now calculated per unique patient, using death observations from optimized endpoint
+  // The observations parameter contains pre-filtered death observations from the dedicated FHIR endpoint
+  // (e.g., using value-concept=DIED parameter), so we can directly process them as death observations
+  // This approach improves performance by reducing data transfer and client-side processing
   const observationBasedTrafficDeaths = new Set<string>();
   for (const obs of observations) {
     const patientId = obs.subject?.reference?.replace("Patient/", "");

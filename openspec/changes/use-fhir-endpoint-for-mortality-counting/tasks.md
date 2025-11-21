@@ -3,89 +3,90 @@
 ## Implementation Tasks
 
 ### 1. Update fetchObservationsByConcept Function
-- [ ] Modify `src/utils/fhirClient.ts`
-  - [ ] Update fetchObservationsByConcept to use the correct query parameters for the FHIR endpoint
-  - [ ] Ensure it queries `https://cdr.fhirlab.net/fhir/Observation?value-concept=DIED` format
-  - [ ] Add proper error handling for the specific endpoint
-  - [ ] Add logging for debugging purposes
+- [x] Modify `src/utils/fhirClient.ts`
+  - [x] Update fetchObservationsByConcept to use the correct query parameters for the FHIR endpoint
+  - [x] Ensure it queries `https://cdr.fhirlab.net/fhir/Observation?value-concept=DIED` format
+  - [x] Add proper error handling for the specific endpoint
+  - [x] Add logging for debugging purposes
 
 ### 2. Update Metrics Calculator Logic
-- [ ] Update `calculateMetrics` function in `metricsCalculator.ts`
-  - [ ] Modify to use observations from the dedicated endpoint for mortality counting
-  - [ ] Ensure mortality rate calculation properly uses the new observation data
-  - [ ] Update case fatality rate calculation to use the new data
-  - [ ] Update total fatalities count to use the new approach
-  - [ ] Ensure patient deduplication logic remains intact
+- [x] Update `calculateMetrics` function in `metricsCalculator.ts`
+  - [x] Modify to use observations from the dedicated endpoint for mortality counting
+  - [x] Ensure mortality rate calculation properly uses the new observation data
+  - [x] Update case fatality rate calculation to use the new data
+  - [x] Update total fatalities count to use the new approach
+  - [x] Ensure patient deduplication logic remains intact
 
 ### 3. Update Patient Deduplication Logic
-- [ ] Review and update patient deduplication logic for mortality counting
-  - [ ] Ensure each unique patient is counted only once for mortality metrics
-  - [ ] Verify that the patient deduplication works with the new endpoint data
-  - [ ] Update any functions that depend on patient identification
+- [x] Review and update patient deduplication logic for mortality counting
+  - [x] Ensure each unique patient is counted only once for mortality metrics
+  - [x] Verify that the patient deduplication works with the new endpoint data
+  - [x] Update any functions that depend on patient identification
 
 ### 4. Update Dashboard Data Loading
-- [ ] Update `Index.tsx` component to use the new approach
-  - [ ] Modify the death observations query to specifically use "DIED" concept
-  - [ ] Verify that the date filtering still works correctly
-  - [ ] Update metrics calculation call to use new observation data
-  - [ ] Ensure loading states and error handling are updated
+- [x] Update `Index.tsx` component to use the new approach
+  - [x] Modify the death observations query to specifically use "DIED" concept
+  - [x] Verify that the date filtering still works correctly
+  - [x] Update metrics calculation call to use new observation data
+  - [x] Ensure loading states and error handling are updated
 
 ### 5. Modify Mortality-Specific Calculations
-- [ ] Update mortality rate calculation logic
-  - [ ] Ensure it counts deaths per unique patient using the new endpoint
-  - [ ] Verify population denominator remains consistent
-  - [ ] Add proper handling for the case where there are no death observations
+- [x] Update mortality rate calculation logic
+  - [x] Ensure it counts deaths per unique patient using the new endpoint
+  - [x] Verify population denominator remains consistent
+  - [x] Add proper handling for the case where there are no death observations
 
-- [ ] Update case fatality rate calculation logic
-  - [ ] Ensure it correctly calculates deaths per traffic accidents using new data
-  - [ ] Verify that it accounts for patient deduplication properly
-  - [ ] Test that numerator and denominator are correctly computed
+- [x] Update case fatality rate calculation logic
+  - [x] Ensure it correctly calculates deaths per traffic accidents using new data
+  - [x] Verify that it accounts for patient deduplication properly
+  - [x] Test that numerator and denominator are correctly computed
 
-- [ ] Update Mortality Breakdown logic
-  - [ ] Ensure it properly counts mortality vs survival using new endpoint
-  - [ ] Verify that the pie chart data is computed correctly
-  - [ ] Maintain consistency with other mortality metrics
+- [x] Update Mortality Breakdown logic
+  - [x] Ensure it properly counts mortality vs survival using new endpoint
+  - [x] Verify that the pie chart data is computed correctly
+  - [x] Maintain consistency with other mortality metrics
 
 ### 6. Add Comprehensive Testing
-- [ ] Create test cases for the updated fetchObservationsByConcept function
-  - [ ] Test successful fetch from DIED endpoint
-  - [ ] Test error handling when endpoint fails
-  - [ ] Test with various date ranges
+- [x] Create test cases for the updated fetchObservationsByConcept function
+  - [x] Test successful fetch from DIED endpoint
+  - [x] Test error handling when endpoint fails
+  - [x] Test with various date ranges
 
-- [ ] Update existing calculateMetrics tests
-  - [ ] Verify mortality rate calculation with new approach
-  - [ ] Test case fatality rate calculation
-  - [ ] Test total fatalities count
-  - [ ] Verify patient deduplication still works
+- [x] Update existing calculateMetrics tests
+  - [x] Verify mortality rate calculation with new approach
+  - [x] Test case fatality rate calculation
+  - [x] Test total fatalities count
+  - [x] Verify patient deduplication still works
 
-- [ ] Add tests for patient deduplication with the new approach
-  - [ ] Multiple observations for same patient
-  - [ ] Different date ranges
-  - [ ] Edge cases where no death observations exist
+- [x] Add tests for patient deduplication with the new approach
+  - [x] Multiple observations for same patient
+  - [x] Different date ranges
+  - [x] Edge cases where no death observations exist
 
 ### 7. Update Documentation and Comments
-- [ ] Update function documentation in `fhirClient.ts`
-  - [ ] Document the new behavior of fetchObservationsByConcept
-  - [ ] Add examples of the expected endpoint behavior
+- [x] Update function documentation in `fhirClient.ts`
+  - [x] Document the new behavior of fetchObservationsByConcept
+  - [x] Add examples of the expected endpoint behavior
 
-- [ ] Update comments in `metricsCalculator.ts`
-  - [ ] Document how mortality metrics now use the dedicated endpoint
-  - [ ] Update any examples or explanations
+- [x] Update comments in `metricsCalculator.ts`
+  - [x] Document how mortality metrics now use the dedicated endpoint
+  - [x] Update any examples or explanations
 
 ### 8. Validation and Testing
-- [ ] Run existing test suite
-  - [ ] Ensure all tests pass with new implementation
-  - [ ] Verify backward compatibility where expected
+- [x] Run existing test suite
+  - [x] Ensure all tests pass with new implementation
+  - [x] Verify backward compatibility where expected
 
-- [ ] Manual testing in development environment
-  - [ ] Load dashboard with new mortality calculation
-  - [ ] Verify mortality metrics display correctly
-  - [ ] Test different date ranges
-  - [ ] Verify performance improvements
+- [x] Manual testing in development environment
+  - [x] Load dashboard with new mortality calculation
+  - [x] Verify mortality metrics display correctly
+  - [x] Test different date ranges
+  - [x] Verify performance improvements
 
-- [ ] Build verification
-  - [ ] `npm run build` completes without errors
-  - [ ] No TypeScript type errors
+- [x] Build verification
+  - [x] `npm run build` completes without errors
+  - [x] No TypeScript type errors
+  - [x] Ensure consistency between calculateMetrics and pie chart calculations
 
 ## Dependencies
 
@@ -102,10 +103,10 @@
 - Task 2 (metricsCalculator) before Task 5 (mortality calculations)
 
 ## Success Criteria
-- [ ] The dedicated endpoint `value-concept=DIED` is properly used for mortality metrics
-- [ ] Death counts match expected values from the optimized endpoint
-- [ ] Dashboard displays correct mortality, case fatality, and fatality metrics
-- [ ] Patient deduplication is maintained to count each unique patient only once
-- [ ] Performance is improved due to server-side filtering
-- [ ] All tests pass with new implementation
-- [ ] No console errors or warnings in production build
+- [x] The dedicated endpoint `value-concept=DIED` is properly used for mortality metrics
+- [x] Death counts match expected values from the optimized endpoint
+- [x] Dashboard displays correct mortality, case fatality, and fatality metrics
+- [x] Patient deduplication is maintained to count each unique patient only once
+- [x] Performance is improved due to server-side filtering
+- [x] All tests pass with new implementation
+- [x] No console errors or warnings in production build

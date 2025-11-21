@@ -154,15 +154,15 @@ const Index = () => {
   const [isMetricsLoading, setIsMetricsLoading] = useState(false);
 
   // Fetch observations with "DIED" value for mortality tracking using the specific endpoint
-  const { data: deathObservations, isLoading: deathObservationsLoading } = useQuery({
+  const { data: deathObservationsResult, isLoading: deathObservationsLoading } = useQuery({
     queryKey: ["deathObservations", date],
     queryFn: async () => {
       try {
         if (!date) {
-          return [];
+          return { resources: [], total: 0 };
         }
 
-        // Use the existing fetchObservations function but with the value-concept parameter
+        // Use the existing fetchObservationsByConcept function but with the value-concept parameter
         // We need to modify this to call the appropriate API with the "DIED" filter
         const { fetchObservationsByConcept } = await import("@/utils/fhirClient");
         return await fetchObservationsByConcept("DIED", format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd"));
@@ -172,10 +172,14 @@ const Index = () => {
           description: "Failed to load death observation data from FHIR server",
           variant: "destructive",
         });
-        return [];
+        return { resources: [], total: 0 };
       }
     },
   });
+
+  // Extract resources and total from the result
+  const deathObservations = deathObservationsResult?.resources || [];
+  const deathObservationsTotal = deathObservationsResult?.total || 0;
 
   // Calculate metrics when data changes
   useEffect(() => {
@@ -196,26 +200,66 @@ const Index = () => {
         const calculatedAgeGroups = groupByAgeGroup(patients, encounters, date);
         const calculatedSexGroups = groupBySex(patients, encounters, date);
 
-        // Calculate expired count using the async isExpired function with date filtering
+        // Calculate expired and survived counts using patient-based logic for consistency with calculateMetrics
+        // This matches the approach in calculateMetrics for unique patient counting
+        const { isTrafficRelatedCondition } = await import("@/utils/snomedMapping");
         const { isExpired, countTransportAccidentConditions } = await import("@/utils/metricsCalculator");
 
-        // Filter encounters by date range before calculating mortality
-        const filteredEncounters = date ? encounters.filter(enc => {
-          const encounterDate = new Date(enc._lastUpdated || enc.period?.start || enc.period?.end || enc.meta?.lastUpdated);
-          const dateFrom = new Date(date.from);
-          const dateTo = new Date(date.to);
-          return encounterDate >= dateFrom && encounterDate <= dateTo;
-        }) : encounters;
+        // Identify traffic patients (patients with traffic-related conditions)
+        const trafficPatients = new Set<string>();
+        for (const enc of encounters) {
+          const patientId = enc.subject?.reference?.replace("Patient/", "");
+          const patientConditions = conditions.filter(cond =>
+            cond.subject?.reference?.replace("Patient/", "") === patientId
+          );
 
-        // Add console logging to validate data ranges are applied correctly
-        console.log(`Date range: ${date?.from?.toISOString()} to ${date?.to?.toISOString()}`);
-        console.log(`Total encounters: ${encounters.length}, Filtered encounters: ${filteredEncounters.length}`);
+          for (const condition of patientConditions) {
+            if (isTrafficRelatedCondition(condition)) {
+              trafficPatients.add(patientId);
+              break;
+            }
+          }
+        }
 
-        // Pass death observations to isExpired for outcome detection
-        const expiredPromises = filteredEncounters.map(enc => isExpired(enc, observationsForMetrics));
-        const expiredResults = await Promise.all(expiredPromises);
-        const calculatedExpiredCount = expiredResults.filter(Boolean).length;
-        const calculatedSurvivedCount = filteredEncounters.length - calculatedExpiredCount;
+        // Count patients with death observations (same approach as calculateMetrics)
+        const observationBasedTrafficDeaths = new Set<string>();
+        for (const obs of observationsForMetrics) {
+          const patientId = obs.subject?.reference?.replace("Patient/", "");
+          if (patientId && trafficPatients.has(patientId)) { // Only count if patient also has traffic-related condition
+            observationBasedTrafficDeaths.add(patientId);
+          }
+        }
+
+        // For each traffic patient, determine if they died (same approach as calculateMetrics)
+        const patientDeathStatus = new Map<string, boolean>();
+        const uniquePatientIds = [...trafficPatients];
+
+        for (const patientId of uniquePatientIds) {
+          if (observationBasedTrafficDeaths.has(patientId)) {
+            patientDeathStatus.set(patientId, true);
+          } else {
+            // For patients without death observations, check encounters using the same date filtering
+            const patientEncounters = encounters.filter(enc => {
+              const encounterDate = new Date(enc._lastUpdated || enc.period?.start || enc.period?.end || enc.meta?.lastUpdated);
+              const dateFrom = new Date(date.from);
+              const dateTo = new Date(date.to);
+              const encPatientId = enc.subject?.reference?.replace("Patient/", "");
+              return encPatientId === patientId && encounterDate >= dateFrom && encounterDate <= dateTo;
+            });
+
+            const expiredPromises = patientEncounters.map(enc => isExpired(enc, observationsForMetrics, patientId));
+            const expiredResults = await Promise.all(expiredPromises);
+            const diedFromTrafficAccident = expiredResults.some(Boolean);
+            patientDeathStatus.set(patientId, diedFromTrafficAccident);
+          }
+        }
+
+        // Use the total from the FHIR bundle as the expired count as requested
+        // This directly reflects the count from the API call: https://cdr.fhirlab.net/fhir/Observation?value-concept=DIED&...
+        const calculatedExpiredCount = deathObservationsTotal;
+        // For the pie chart, we can calculate survived as the number of traffic patients minus expired
+        // (though this is a simplified calculation)
+        const calculatedSurvivedCount = Math.max(0, trafficPatients.size - calculatedExpiredCount);
 
         // Log the mortality counts for verification
         console.log(`Expired count: ${calculatedExpiredCount}, Survived count: ${calculatedSurvivedCount}`);

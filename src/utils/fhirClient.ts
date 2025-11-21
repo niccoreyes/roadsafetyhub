@@ -288,12 +288,21 @@ export function clearPatientCache(): void {
 
 /**
  * Fetches observations with a specific concept value within a date range
+ * Uses the value-concept parameter for server-side filtering which improves performance
  * @param conceptValue The value concept to search for (e.g., "DIED")
  * @param fromDate Start date in YYYY-MM-DD format
  * @param toDate End date in YYYY-MM-DD format
- * @returns Array of observation resources
+ * @returns Object containing resources array and total count from the FHIR bundle
+ *
+ * Example: For death observations, call fetchObservationsByConcept("DIED", "2025-01-01", "2025-12-31")
+ * This will return observations with valueCodeableConcept containing code "DIED" updated in the specified date range
  */
-export async function fetchObservationsByConcept(conceptValue: string, fromDate: string, toDate: string): Promise<any[]> {
+export interface FetchedObservations {
+  resources: any[];
+  total: number;
+}
+
+export async function fetchObservationsByConcept(conceptValue: string, fromDate: string, toDate: string): Promise<FetchedObservations> {
   try {
     // Construct the URL with value-concept parameter
     const url = `${FHIR_BASE_URL}/Observation?value-concept=${conceptValue}&_lastUpdated=ge${fromDate}&_lastUpdated=lt${toDate}`;
@@ -323,10 +332,16 @@ export async function fetchObservationsByConcept(conceptValue: string, fromDate:
     const data = await response.json();
 
     if (data.resourceType === 'Bundle' && Array.isArray(data.entry)) {
-      return data.entry.map((entry: any) => entry.resource);
+      return {
+        resources: data.entry.map((entry: any) => entry.resource),
+        total: data.total || 0
+      };
     }
 
-    return [];
+    return {
+      resources: [],
+      total: 0
+    };
   } catch (error) {
     logger.error(`Error fetching observations by concept ${conceptValue}:`, error);
     throw error;

@@ -843,6 +843,178 @@ describe('Metrics Calculator', () => {
       expect(result).toBe(true); // Should use discharge disposition fallback
     });
   });
+
+  describe('calculateMetrics with optimized endpoint data', () => {
+    it('should correctly calculate mortality metrics with pre-filtered death observations', async () => {
+      const encounters = [
+        {
+          id: 'encounter-1',
+          subject: { reference: 'Patient/patient-1' }
+        },
+        {
+          id: 'encounter-2',
+          subject: { reference: 'Patient/patient-2' }
+        }
+      ];
+
+      const conditions = [
+        {
+          id: 'condition-1',
+          subject: { reference: 'Patient/patient-1' },
+          code: { coding: [
+            {
+              code: '274215009',
+              display: 'Transport accident',
+              system: 'http://snomed.info/sct'
+            }
+          ]}
+        },
+        {
+          id: 'condition-2',
+          subject: { reference: 'Patient/patient-2' },
+          code: { coding: [
+            {
+              code: '274215009',
+              display: 'Transport accident',
+              system: 'http://snomed.info/sct'
+            }
+          ]}
+        }
+      ];
+
+      // Pre-filtered death observations (from optimized endpoint)
+      const deathObservations = [
+        {
+          id: 'death-obs-1',
+          subject: { reference: 'Patient/patient-1' },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          }
+        }
+      ];
+
+      const patients = new Map([
+        ['patient-1', { id: 'patient-1', gender: 'male', birthDate: '1990-01-01' }],
+        ['patient-2', { id: 'patient-2', gender: 'female', birthDate: '1990-01-01' }]
+      ]);
+
+      const population = 100000;
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined, deathObservations);
+
+      // Only patient-1 should be counted as a death since only their death observation was provided
+      expect(metrics.totalFatalities).toBe(1);
+      expect(metrics.mortalityRate).toBe((1 / population) * 100000); // 1 death per 100k population
+      expect(metrics.caseFatalityRate).toBe((1 / 2) * 100); // 1 death out of 2 traffic accidents = 50%
+    });
+
+    it('should only count unique patients even with multiple death observations', async () => {
+      const encounters = [
+        {
+          id: 'encounter-1',
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const conditions = [
+        {
+          id: 'condition-1',
+          subject: { reference: 'Patient/patient-1' },
+          code: { coding: [
+            {
+              code: '274215009',
+              display: 'Transport accident',
+              system: 'http://snomed.info/sct'
+            }
+          ]}
+        }
+      ];
+
+      // Multiple death observations for the same patient (simulating what might come from the endpoint)
+      const deathObservations = [
+        {
+          id: 'death-obs-1',
+          subject: { reference: 'Patient/patient-1' },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          }
+        },
+        {
+          id: 'death-obs-2',
+          subject: { reference: 'Patient/patient-1' }, // Same patient
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          }
+        }
+      ];
+
+      const patients = new Map([
+        ['patient-1', { id: 'patient-1', gender: 'male', birthDate: '1990-01-01' }]
+      ]);
+
+      const population = 100000;
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined, deathObservations);
+
+      // Should only count patient-1 once despite multiple death observations
+      expect(metrics.totalFatalities).toBe(1);
+      expect(metrics.mortalityRate).toBe((1 / population) * 100000); // 1 death per 100k population
+    });
+
+    it('should return 0 for all mortality metrics when no death observations are provided', async () => {
+      const encounters = [
+        {
+          id: 'encounter-1',
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const conditions = [
+        {
+          id: 'condition-1',
+          subject: { reference: 'Patient/patient-1' },
+          code: { coding: [
+            {
+              code: '274215009',
+              display: 'Transport accident',
+              system: 'http://snomed.info/sct'
+            }
+          ]}
+        }
+      ];
+
+      // No death observations (empty array)
+      const deathObservations = [];
+
+      const patients = new Map([
+        ['patient-1', { id: 'patient-1', gender: 'male', birthDate: '1990-01-01' }]
+      ]);
+
+      const population = 100000;
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined, deathObservations);
+
+      // Should have 0 deaths when no death observations are provided
+      expect(metrics.totalFatalities).toBe(0);
+      expect(metrics.mortalityRate).toBe(0);
+      expect(metrics.caseFatalityRate).toBe(0);
+    });
+  });
 });
 
 import { countTransportAccidents, countTransportAccidentConditions, getUniquePatientsWithSnomedCodes } from './metricsCalculator';
