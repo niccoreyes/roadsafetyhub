@@ -87,6 +87,8 @@
   - [x] `npm run build` completes without errors
   - [x] No TypeScript type errors
   - [x] Ensure consistency between calculateMetrics and pie chart calculations
+  - [x] Update fetchObservationsByConcept to return bundle total
+  - [x] Use bundle total directly as expired count
 
 ## Dependencies
 
