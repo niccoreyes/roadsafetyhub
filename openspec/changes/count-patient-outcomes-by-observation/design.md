@@ -25,15 +25,11 @@
   "status": "final",
   "code": {
     "coding": [{
-      "system": "http://snomed.info/sct",
-      "version": "http://snomed.info/sct/900000000000207008/version/20241001",
       "code": "418138009",
-      "display": "Patient condition finding (finding)"
     }]
   },
   "valueCodeableConcept": {
     "coding": [{
-      "system": "http://www.roadsafetyph.doh.gov.ph/CodeSystem",
       "code": "DIED",
       "display": "Died"
     }]
