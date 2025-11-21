@@ -153,6 +153,30 @@ const Index = () => {
   // Additional state for async processing
   const [isMetricsLoading, setIsMetricsLoading] = useState(false);
 
+  // Fetch observations with "DIED" value for mortality tracking using the specific endpoint
+  const { data: deathObservations, isLoading: deathObservationsLoading } = useQuery({
+    queryKey: ["deathObservations", date],
+    queryFn: async () => {
+      try {
+        if (!date) {
+          return [];
+        }
+
+        // Use the existing fetchObservations function but with the value-concept parameter
+        // We need to modify this to call the appropriate API with the "DIED" filter
+        const { fetchObservationsByConcept } = await import("@/utils/fhirClient");
+        return await fetchObservationsByConcept("DIED", format(date.from, "yyyy-MM-dd"), format(date.to, "yyyy-MM-dd"));
+      } catch (error) {
+        toast({
+          title: "Error fetching death observations",
+          description: "Failed to load death observation data from FHIR server",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
+  });
+
   // Calculate metrics when data changes
   useEffect(() => {
     if (encounters.length > 0 || conditions.length > 0 || transportAccidentObservations.length > 0) {
@@ -162,7 +186,10 @@ const Index = () => {
         // Fetch required data from server APIs
         const populationAtRisk = await fetchPopulationData(); // Fetch from population registry API
         const motorVehiclesCount = await fetchVehicleCountData(); // Fetch from vehicle registry API
-        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients, populationAtRisk, motorVehiclesCount, date);
+
+        // Use death observations for outcome detection based on the specific endpoint
+        const observationsForMetrics = deathObservations || [];
+        const calculatedMetrics = await calculateMetrics(encounters, conditions, patients, populationAtRisk, motorVehiclesCount, date, observationsForMetrics);
 
         // Pass the date range and encounters to the grouping functions
         const calculatedInjuryGroups = groupByInjuryType(conditions);
@@ -184,7 +211,8 @@ const Index = () => {
         console.log(`Date range: ${date?.from?.toISOString()} to ${date?.to?.toISOString()}`);
         console.log(`Total encounters: ${encounters.length}, Filtered encounters: ${filteredEncounters.length}`);
 
-        const expiredPromises = filteredEncounters.map(enc => isExpired(enc));
+        // Pass death observations to isExpired for outcome detection
+        const expiredPromises = filteredEncounters.map(enc => isExpired(enc, observationsForMetrics));
         const expiredResults = await Promise.all(expiredPromises);
         const calculatedExpiredCount = expiredResults.filter(Boolean).length;
         const calculatedSurvivedCount = filteredEncounters.length - calculatedExpiredCount;
@@ -209,9 +237,9 @@ const Index = () => {
 
       calculateAsyncMetrics();
     }
-  }, [encounters, conditions, transportAccidentObservations, patients, date]);
+  }, [encounters, conditions, transportAccidentObservations, patients, deathObservations, date]);
 
-  const finalIsLoading = isLoading || isMetricsLoading || transportAccidentLoading;
+  const finalIsLoading = isLoading || isMetricsLoading || transportAccidentLoading || deathObservationsLoading;
 
   // Function to convert base rate (per 100k) to selected multiplier
   const convertRate = (baseRate: number, multiplier: string): number => {

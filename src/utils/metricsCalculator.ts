@@ -13,6 +13,120 @@ export interface DashboardMetrics {
 }
 
 /**
+ * Defines the FHIR Observation structure for type safety
+ */
+interface FHIRObservation {
+  id?: string;
+  resourceType?: string;
+  meta?: {
+    profile?: string[];
+  };
+  status?: string;
+  code?: {
+    coding?: Array<{
+      system?: string;
+      code?: string;
+      display?: string;
+    }>;
+  };
+  valueCodeableConcept?: {
+    coding?: Array<{
+      system?: string;
+      code?: string;
+      display?: string;
+    }>;
+  };
+  encounter?: {
+    reference?: string;
+  };
+  subject?: {
+    reference?: string;
+  };
+}
+
+/**
+ * Defines the FHIR Encounter structure for type safety
+ */
+interface FHIREncounter {
+  id?: string;
+  resourceType?: string;
+  status?: string;
+  subject?: {
+    reference?: string;
+  };
+  hospitalization?: {
+    dischargeDisposition?: {
+      coding?: Array<{
+        system?: string;
+        code?: string;
+        display?: string;
+      }>;
+    };
+  };
+  period?: {
+    start?: string;
+    end?: string;
+  };
+  meta?: {
+    lastUpdated?: string;
+  };
+  _lastUpdated?: string;
+}
+
+/**
+ * Determines patient death status by examining Observation resources with the PH Road Safety IG Observation Outcome Release profile
+ * Uses the observation code, profile, and valueCodeableConcept coding to determine death status
+ *
+ * @param observations - Array of FHIR Observation resources
+ * @param patientId - The patient ID to look for in the observations
+ * @returns boolean indicating if the patient died based on outcome observations
+ */
+export async function checkOutcomeStatus(observations: FHIRObservation[], patientId: string): Promise<boolean> {
+  try {
+    // Filter observations for the specific patient
+    const patientObservations = observations.filter(obs => {
+      const obsPatientId = obs.subject?.reference?.replace("Patient/", "");
+      return obsPatientId === patientId;
+    });
+
+    // Look for observations with the correct profile and indicating death
+    for (const observation of patientObservations) {
+      // Check if the observation has the correct profile
+      // const hasProfile = observation.meta?.profile?.includes(
+      //   "https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release"
+      // );
+      // console.log(`Observation ${observation.id} for patient ${patientId} has profile: ${hasProfile}`);
+      // if (!hasProfile) continue;
+
+      // Check for the specific code indicating patient condition finding (SNOMED CT)
+      // const hasCode = observation.code?.coding?.some((coding) =>
+      //   (coding?.system === "http://snomed.info/sct") &&
+      //   (coding?.code === "418138009") // Patient condition finding
+      // );
+
+      // if (!hasCode) continue;
+      // console.log(`Observation ${observation.id} for patient ${patientId} has the correct code.`);
+
+      // Check for value that indicates death
+      const died = observation.valueCodeableConcept?.coding?.some((coding) =>
+        (coding?.system === "http://www.roadsafetyph.doh.gov.ph/CodeSystem" && coding?.code === "DIED") // Looking for DIED from the specific PH Road Safety code system
+      );
+
+      if (died) {
+        console.debug(`Patient ${patientId} marked as deceased based on observation ${observation.id}`);
+        return true; // Patient died
+      }
+    }
+
+    // If no death observation found, patient is assumed alive
+    return false;
+  } catch (error) {
+    console.error(`Error in checkOutcomeStatus for patient ${patientId}:`, error);
+    return false; // Default to not expired in case of error
+  }
+}
+
+/**
  * Static placeholder for motor vehicle count
  * In a real system, this would come from a vehicle registry API
  */
@@ -22,9 +136,36 @@ export interface DashboardMetrics {
  * Checks if an encounter resulted in death using PH Road Safety IG ValueSet
  * Falls back to known death codes if ValueSet expansion fails
  */
-export async function isExpired(encounter: any): Promise<boolean> {
+export async function isExpired(
+  encounter: FHIREncounter,
+  observations: FHIRObservation[] = [],
+  patientId?: string
+): Promise<boolean> {
+  // If observations are provided, check them first for death outcome
+  if (Array.isArray(observations) && observations.length > 0) {
+    // Extract patient ID from encounter if not provided
+    const actualPatientId = patientId || encounter.subject?.reference?.replace("Patient/", "");
+
+    if (actualPatientId) {
+      const deathStatus = await checkOutcomeStatus(observations, actualPatientId);
+      if (deathStatus) {
+        return true; // Patient died according to observation
+      }
+    }
+  }
+
+  // Fallback to discharge disposition if:
+  // 1. No observations provided
+  // 2. No death found in observations
+  // 3. Patient ID couldn't be determined
   const dispositionCoding = encounter.hospitalization?.dischargeDisposition?.coding?.[0];
-  if (!dispositionCoding) return false;
+  if (!dispositionCoding) {
+    // Log fallback when there are no observations and no discharge disposition
+    if (Array.isArray(observations) && observations.length > 0) {
+      console.warn(`No death observation found for patient in encounter ${encounter.id}, and no discharge disposition available. Defaulting to not expired.`);
+    }
+    return false;
+  }
 
   try {
     // Check if the disposition code is in the discharge disposition ValueSet
@@ -38,7 +179,22 @@ export async function isExpired(encounter: any): Promise<boolean> {
     const dispositionCode = dispositionCoding.code;
     const deathCodes = ['exp', 'expired', 'dead', 'death'];
 
-    return isDeathDisposition || deathCodes.includes(dispositionCode);
+    const result = isDeathDisposition || deathCodes.includes(dispositionCode);
+
+    // If there are observations and the results differ, log a warning
+    if (Array.isArray(observations) && observations.length > 0 && patientId) {
+      const observationStatus = await checkOutcomeStatus(observations, patientId);
+      if (result !== observationStatus) {
+        console.warn(`Conflicting outcome sources detected for patient ${patientId}:
+          Observation-based status: ${observationStatus},
+          Discharge disposition status: ${result}.
+          Prioritizing observation-based outcome.`);
+        // Return the observation-based outcome as per requirements
+        return observationStatus;
+      }
+    }
+
+    return result;
   } catch (error) {
     console.warn('ValueSet expansion failed for discharge disposition, using fallback logic:', error);
 
@@ -46,7 +202,22 @@ export async function isExpired(encounter: any): Promise<boolean> {
     const dispositionCode = dispositionCoding.code;
     const deathCodes = ['exp', 'expired', 'dead', 'death'];
 
-    return deathCodes.includes(dispositionCode?.toLowerCase());
+    const result = deathCodes.includes(dispositionCode?.toLowerCase());
+
+    // If there are observations and the results differ, log a warning
+    if (Array.isArray(observations) && observations.length > 0 && patientId) {
+      const observationStatus = await checkOutcomeStatus(observations, patientId);
+      if (result !== observationStatus) {
+        console.warn(`Conflicting outcome sources detected for patient ${patientId}:
+          Observation-based status: ${observationStatus},
+          Discharge disposition status (fallback): ${result}.
+          Prioritizing observation-based outcome.`);
+        // Return the observation-based outcome as per requirements
+        return observationStatus;
+      }
+    }
+
+    return result;
   }
 }
 
@@ -90,6 +261,7 @@ export async function getDispositionCategory(encounter: any): Promise<string> {
  * @param populationAtRisk - Population at risk for calculating rates (default: 1,000,000)
  * @param motorVehiclesCount - Number of motor vehicles for accident per vehicle calculation (default: 50,000)
  * @param dateRange - Optional date range to validate metrics are calculated with filtered data
+ * @param observations - Array of FHIR observation resources for outcome detection (optional, for backward compatibility)
  */
 export async function calculateMetrics(
   encounters: any[],
@@ -97,7 +269,8 @@ export async function calculateMetrics(
   patients: Map<string, any>,
   populationAtRisk: number = 1000000, // Should be fetched from population registry API (currently a default for backward compatibility)
   motorVehiclesCount: number = 50000, // Should be fetched from vehicle registry API (currently a default for backward compatibility)
-  dateRange?: { from: Date; to: Date }
+  dateRange?: { from: Date; to: Date },
+  observations: any[] = [] // Optional observations array for outcome detection, defaults to empty array for backward compatibility
 ): Promise<DashboardMetrics> {
   // Add console logging to confirm metrics are calculated with date-filtered data
   if (dateRange) {
@@ -133,25 +306,41 @@ export async function calculateMetrics(
     }
   }
 
-  // A. Mortality Rate due to Traffic Accident - now calculated per unique patient
-  // First, we identify all patients who had traffic-related encounters that resulted in death
-  const patientDeathStatus = new Map<string, boolean>(); // Tracks if a patient died from a traffic accident
-
-  for (const patientId of trafficPatients) {
-    const patientEncounters = trafficEncounters.filter(enc =>
-      enc.subject?.reference?.replace("Patient/", "") === patientId
-    );
-
-    // Check if any of the patient's traffic-related encounters resulted in death
-    const expiredPromises = patientEncounters.map(enc => isExpired(enc));
-    const expiredResults = await Promise.all(expiredPromises);
-    const diedFromTrafficAccident = expiredResults.some(Boolean);
-
-    // Record the death status for this patient
-    patientDeathStatus.set(patientId, diedFromTrafficAccident);
+  // A. Mortality Rate - now calculated per unique patient, counting deaths with "DIED" observation value
+  // Since the observations parameter should contain only "DIED" observations when using the dedicated endpoint,
+  // we can directly process them as death observations
+  const observationBasedTrafficDeaths = new Set<string>();
+  for (const obs of observations) {
+    const patientId = obs.subject?.reference?.replace("Patient/", "");
+    if (patientId && trafficPatients.has(patientId)) { // Only count if patient also has traffic-related condition
+      observationBasedTrafficDeaths.add(patientId);
+    }
   }
 
-  // Count how many unique patients died from traffic accidents
+  // For each patient with traffic-related conditions, determine if they died
+  const patientDeathStatus = new Map<string, boolean>(); // Tracks if a patient died from traffic accident
+
+  for (const patientId of trafficPatients) {
+    // Check if this traffic patient has a "DIED" observation
+    if (observationBasedTrafficDeaths.has(patientId)) {
+      patientDeathStatus.set(patientId, true);
+    } else {
+      // For patients without "DIED" observations, fall back to checking encounters
+      const patientEncounters = trafficEncounters.filter(enc =>
+        enc.subject?.reference?.replace("Patient/", "") === patientId
+      );
+
+      // Check if any of the patient's encounters resulted in death using the existing logic
+      const expiredPromises = patientEncounters.map(enc => isExpired(enc, observations, patientId));
+      const expiredResults = await Promise.all(expiredPromises);
+      const diedFromTrafficAccident = expiredResults.some(Boolean);
+
+      // Record the death status for this patient
+      patientDeathStatus.set(patientId, diedFromTrafficAccident);
+    }
+  }
+
+  // Count how many unique patients died (with preference given to observation-based deaths)
   let trafficDeaths = 0;
   for (const died of patientDeathStatus.values()) {
     if (died) {

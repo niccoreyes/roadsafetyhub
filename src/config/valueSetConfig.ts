@@ -5,15 +5,18 @@ export interface ValueSetConfig {
   injuryMoiValueSetUrl: string;
   observationCategoryValueSetUrl: string;
   dischargeDispositionValueSetUrl: string;
+  observationOutcomeValueSetUrl: string;
 }
 
 export const valueSetConfig: ValueSetConfig = {
-  trafficEncounterValueSetUrl: import.meta.env.VITE_FHIR_VS_TRAFFIC_ENCOUNTER_URL || 
+  trafficEncounterValueSetUrl: import.meta.env.VITE_FHIR_VS_TRAFFIC_ENCOUNTER_URL ||
     'http://fhir.ph/ValueSet/road-traffic-encounters',
-  injuryMoiValueSetUrl: import.meta.env.VITE_FHIR_VS_INJURY_MOI_URL || 
+  injuryMoiValueSetUrl: import.meta.env.VITE_FHIR_VS_INJURY_MOI_URL ||
     'http://fhir.ph/ValueSet/injury-mechanism-of-injury',
-  observationCategoryValueSetUrl: import.meta.env.VITE_FHIR_VS_OBSERVATION_CATEGORY_URL || 
+  observationCategoryValueSetUrl: import.meta.env.VITE_FHIR_VS_OBSERVATION_CATEGORY_URL ||
     'http://fhir.ph/ValueSet/observation-category',
-  dischargeDispositionValueSetUrl: import.meta.env.VITE_FHIR_VS_DISCHARGE_DISPOSITION_URL || 
+  dischargeDispositionValueSetUrl: import.meta.env.VITE_FHIR_VS_DISCHARGE_DISPOSITION_URL ||
     'http://fhir.ph/ValueSet/discharge-disposition',
+  observationOutcomeValueSetUrl: import.meta.env.VITE_FHIR_VS_OBSERVATION_OUTCOME_URL ||
+    'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/ValueSet/rs-observation-outcome-release',
 };

@@ -285,3 +285,50 @@ export async function resolvePatients(resources: any[]): Promise<Map<string, any
 export function clearPatientCache(): void {
   patientCache.clear();
 }
+
+/**
+ * Fetches observations with a specific concept value within a date range
+ * @param conceptValue The value concept to search for (e.g., "DIED")
+ * @param fromDate Start date in YYYY-MM-DD format
+ * @param toDate End date in YYYY-MM-DD format
+ * @returns Array of observation resources
+ */
+export async function fetchObservationsByConcept(conceptValue: string, fromDate: string, toDate: string): Promise<any[]> {
+  try {
+    // Construct the URL with value-concept parameter
+    const url = `${FHIR_BASE_URL}/Observation?value-concept=${conceptValue}&_lastUpdated=ge${fromDate}&_lastUpdated=lt${toDate}`;
+
+    // Prepare headers with auth
+    const headers: Record<string, string> = {
+      'Accept': 'application/fhir+json',
+    };
+
+    // Add auth headers if configured
+    const authType = import.meta.env.VITE_FHIR_AUTH_TYPE as 'none' | 'bearer' | 'oauth' || 'none';
+    const authToken = import.meta.env.VITE_FHIR_AUTH_TOKEN;
+
+    if (authType !== 'none' && authToken) {
+      headers['Authorization'] = `${authType === 'bearer' ? 'Bearer' : 'Bearer'} ${authToken}`;
+    }
+
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(FHIR_TIMEOUT)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.resourceType === 'Bundle' && Array.isArray(data.entry)) {
+      return data.entry.map((entry: any) => entry.resource);
+    }
+
+    return [];
+  } catch (error) {
+    logger.error(`Error fetching observations by concept ${conceptValue}:`, error);
+    throw error;
+  }
+}

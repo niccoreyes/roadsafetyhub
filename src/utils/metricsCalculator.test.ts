@@ -1,4 +1,4 @@
-import { calculateMetrics, getAgeGroup, calculateAge } from './metricsCalculator';
+import { calculateMetrics, getAgeGroup, calculateAge, checkOutcomeStatus, isExpired } from './metricsCalculator';
 
 describe('Metrics Calculator', () => {
   describe('calculateAge', () => {
@@ -68,7 +68,7 @@ describe('Metrics Calculator', () => {
         ['patient-1', { id: 'patient-1', gender: 'male', birthDate: '1990-01-01' }]
       ]);
 
-      const metrics = await calculateMetrics(encounters, conditions, patients, 1000000, 50000, undefined);
+      const metrics = await calculateMetrics(encounters, conditions, patients, 1000000, 50000, undefined, []);
 
       // Check that metrics object has the expected properties
       expect(metrics).toHaveProperty('mortalityRate');
@@ -129,8 +129,8 @@ describe('Metrics Calculator', () => {
       const basePopulation = 100000;  // 100k
       const smallerPopulation = 10000;  // 10k - this should make rates 10x higher
 
-      const metricsBase = await calculateMetrics(encounters, conditions, patients, basePopulation, 50000, undefined);
-      const metricsSmaller = await calculateMetrics(encounters, conditions, patients, smallerPopulation, 50000, undefined);
+      const metricsBase = await calculateMetrics(encounters, conditions, patients, basePopulation, 50000, undefined, []);
+      const metricsSmaller = await calculateMetrics(encounters, conditions, patients, smallerPopulation, 50000, undefined, []);
 
       // Mortality rate should be (deaths / population) * 100000
       // With 1 death and 100k population, rate should be (1/100000)*100000 = 1.0 per 100k
@@ -207,7 +207,7 @@ describe('Metrics Calculator', () => {
       ]);
 
       const population = 100000;
-      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined);
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined, []);
 
       // The patient with ID 'patient-1' has 2 traffic-related encounters that both resulted in death
       // But they should only be counted once in the mortality rate calculation
@@ -263,7 +263,7 @@ describe('Metrics Calculator', () => {
       ]);
 
       const population = 100000;
-      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined);
+      const metrics = await calculateMetrics(encounters, conditions, patients, population, 50000, undefined, []);
 
       // Only patient-1 had a traffic-related accident that was not fatal (injury case)
       // So: 1 non-fatal injury out of the population
@@ -537,6 +537,310 @@ describe('Metrics Calculator', () => {
         expect(uniquePatients.has('patient-2')).toBe(true);
         expect(uniquePatients.has('patient-3')).toBe(false);
       });
+    });
+  });
+
+  describe('checkOutcomeStatus', () => {
+    it('should return true for patient with death observation using custom code system', async () => {
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release'
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '418138009',
+                display: 'Patient condition finding'
+              }
+            ]
+          },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await checkOutcomeStatus(observations, 'patient-1');
+      expect(result).toBe(true);
+    });
+
+    it('should return false for patient with alive/improved observation using SNOMED code', async () => {
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release'
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '418138009',
+                display: 'Patient condition finding'
+              }
+            ]
+          },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '268910001',
+                display: 'Improved'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await checkOutcomeStatus(observations, 'patient-1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false for patient with no outcome observations', async () => {
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'http://hl7.org/fhir/StructureDefinition/VitalSigns' // Different profile
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '8867-4',
+                display: 'Heart rate'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await checkOutcomeStatus(observations, 'patient-1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false for patient with matching profile but non-death outcome', async () => {
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release'
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '418138009',
+                display: 'Patient condition finding'
+              }
+            ]
+          },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'SURVIVED',
+                display: 'Survived'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await checkOutcomeStatus(observations, 'patient-1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when no observations match the patient', async () => {
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release'
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '418138009',
+                display: 'Patient condition finding'
+              }
+            ]
+          },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-2' } // Different patient
+        }
+      ];
+
+      const result = await checkOutcomeStatus(observations, 'patient-1');
+      expect(result).toBe(false);
+    });
+
+    it('should handle empty observations array', async () => {
+      const result = await checkOutcomeStatus([], 'patient-1');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('isExpired with observations support', () => {
+    it('should use observation-based detection when observations are provided', async () => {
+      const encounter = {
+        id: 'enc-1',
+        subject: { reference: 'Patient/patient-1' },
+        hospitalization: { dischargeDisposition: { coding: [{ code: 'home' }] } } // Non-fatal discharge
+      };
+
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release'
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '418138009',
+                display: 'Patient condition finding'
+              }
+            ]
+          },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await isExpired(encounter, observations, 'patient-1');
+      expect(result).toBe(true); // Should return true based on observation, not discharge disposition
+    });
+
+    it('should fall back to discharge disposition when no relevant observations', async () => {
+      const encounter = {
+        id: 'enc-1',
+        subject: { reference: 'Patient/patient-1' },
+        hospitalization: { dischargeDisposition: { coding: [{ code: 'exp' }] } } // Fatal discharge
+      };
+
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'http://hl7.org/fhir/StructureDefinition/VitalSigns' // Different profile
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await isExpired(encounter, observations, 'patient-1');
+      expect(result).toBe(true); // Should return true based on discharge disposition
+    });
+
+    it('should return false when neither observations nor discharge disposition indicate death', async () => {
+      const encounter = {
+        id: 'enc-1',
+        subject: { reference: 'Patient/patient-1' },
+        hospitalization: { dischargeDisposition: { coding: [{ code: 'home' }] } } // Non-fatal
+      };
+
+      const observations = [];
+
+      const result = await isExpired(encounter, observations, 'patient-1');
+      expect(result).toBe(false);
+    });
+
+    it('should prioritize observation-based outcome when both sources present but conflict', async () => {
+      const encounter = {
+        id: 'enc-1',
+        subject: { reference: 'Patient/patient-1' },
+        hospitalization: { dischargeDisposition: { coding: [{ code: 'home' }] } } // Non-fatal
+      };
+
+      const observations = [
+        {
+          id: 'obs-1',
+          meta: {
+            profile: [
+              'https://build.fhir.org/ig/UPM-NTHC/PH-RoadSafetyIG/StructureDefinition/rs-observation-outcome-release'
+            ]
+          },
+          code: {
+            coding: [
+              {
+                system: 'http://snomed.info/sct',
+                code: '418138009',
+                display: 'Patient condition finding'
+              }
+            ]
+          },
+          valueCodeableConcept: {
+            coding: [
+              {
+                system: 'http://www.roadsafetyph.doh.gov.ph/CodeSystem',
+                code: 'DIED',
+                display: 'Died'
+              }
+            ]
+          },
+          subject: { reference: 'Patient/patient-1' }
+        }
+      ];
+
+      const result = await isExpired(encounter, observations, 'patient-1');
+      expect(result).toBe(true); // Should prioritize observation-based outcome
+    });
+
+    it('should maintain backward compatibility when no observations provided', async () => {
+      const encounter = {
+        id: 'enc-1',
+        subject: { reference: 'Patient/patient-1' },
+        hospitalization: { dischargeDisposition: { coding: [{ code: 'exp' }] } }
+      };
+
+      const result = await isExpired(encounter); // No observations provided
+      expect(result).toBe(true); // Should use discharge disposition fallback
     });
   });
 });
